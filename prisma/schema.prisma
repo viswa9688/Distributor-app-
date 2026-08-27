@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PriceKind {
+  BUY
+  SELL
+}
+
+enum PriceSourceType {
+  CATALOG
+  INVOICE
+}
+
+enum InvoiceStatus {
+  REVIEW
+  CONFIRMED
+}
+
+enum MatchConfidence {
+  HIGH
+  MEDIUM
+  LOW
+  NONE
+}
+
+enum CatalogStatus {
+  PROCESSING
+  REVIEW
+  APPLIED
+  FAILED
+}
+
+enum CatalogLineAction {
+  CREATE
+  UPDATE
+  SKIP
+}
+
+model Product {
+  id              String         @id @default(cuid())
+  name            String
+  sku             String?
+  unit            String?
+  currentBuyPrice Decimal        @db.Decimal(12, 2)
+  normalizedName  String
+  sizeValue       Decimal?       @db.Decimal(12, 4)
+  sizeUnit        String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  priceHistory    PriceHistory[]
+  invoiceLines    InvoiceLine[]
+  catalogLines    CatalogLine[]
+
+  @@index([normalizedName])
+  @@index([sku])
+}
+
+model PriceHistory {
+  id         String          @id @default(cuid())
+  productId  String
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kind       PriceKind
+  price      Decimal         @db.Decimal(12, 2)
+  recordedAt DateTime        @default(now())
+  sourceType PriceSourceType
+  sourceId   String
+
+  @@index([productId, kind, recordedAt(sort: Desc)])
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  retailerName  String
+  invoiceNumber String?
+  invoiceDate   DateTime?
+  imagePath     String
+  status        InvoiceStatus @default(REVIEW)
+  createdBy     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  lines         InvoiceLine[]
+}
+
+model InvoiceLine {
+  id               String          @id @default(cuid())
+  invoiceId        String
+  invoice          Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  rawDescription   String
+  quantity         Decimal         @db.Decimal(12, 3)
+  unitPrice        Decimal         @db.Decimal(12, 2)
+  lineTotal        Decimal         @db.Decimal(12, 2)
+  matchConfidence  MatchConfidence @default(NONE)
+  matchCandidates  Json?
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model CatalogImport {
+  id           String            @id @default(cuid())
+  filePath     String
+  status       CatalogStatus     @default(PROCESSING)
+  error        String?
+  createdBy    String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  lines        CatalogLine[]
+  extraCharges ExtraCharge[]
+}
+
+model CatalogLine {
+  id               String            @id @default(cuid())
+  catalogImportId  String
+  catalogImport    CatalogImport     @relation(fields: [catalogImportId], references: [id], onDelete: Cascade)
+  rawName          String
+  sku              String?
+  unit             String?
+  price            Decimal           @db.Decimal(12, 2)
+  matchedProductId String?
+  matchedProduct   Product?          @relation(fields: [matchedProductId], references: [id], onDelete: SetNull)
+  action           CatalogLineAction @default(CREATE)
+
+  @@index([catalogImportId])
+  @@index([matchedProductId])
+}
+
+model ExtraCharge {
+  id              String        @id @default(cuid())
+  catalogImportId String
+  catalogImport   CatalogImport @relation(fields: [catalogImportId], references: [id], onDelete: Cascade)
+  name            String
+  amount          Decimal?      @db.Decimal(12, 2)
+  percent         Decimal?      @db.Decimal(8, 4)
+
+  @@index([catalogImportId])
+}
