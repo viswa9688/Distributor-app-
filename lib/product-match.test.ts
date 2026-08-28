@@ -6,7 +6,7 @@ import {
   parseIdentity,
   sizesCompatible,
   type ProductCandidate,
-} from "./product-match.ts";
+} from "./product-match";
 
 const surf1kg: ProductCandidate = {
   id: "p-surf-1kg",

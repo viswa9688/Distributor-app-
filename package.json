@@ -13,6 +13,7 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.3",
     "@serwist/next": "^9.5.12",
     "@supabase/ssr": "^0.12.5",

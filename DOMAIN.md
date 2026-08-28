@@ -56,41 +56,30 @@ Confirm with the user after each step that the app behaves as intended. Do not s
 
 ## Current phase
 
-**Step 2 — Product matcher** is implemented. Waiting for user confirmation before starting step 3 (catalog OCR).
+**Step 3 — Catalog OCR** is implemented. Waiting for user confirmation before starting step 4 (product detail / last-5 history).
 
 ## What is built
 
-Step 1 (scaffold, auth, empty screens) plus:
+Steps 1–2, plus:
 
-- [`lib/product-match.ts`](lib/product-match.ts) — shared matcher for catalog rows and invoice lines.
-  - Normalize (NFKC, lowercase, punctuation), extract size (`1kg` / `1 KG` / `500g`), drop filler words (`detergent`, `powder`, `pack`, …).
-  - Size mismatch is a hard reject (`1kg` never attaches to `500g`).
-  - Then SKU exact → normalized name exact → Dice + containment.
-  - `HIGH` pre-selects (still editable later). `MEDIUM` returns top 3 and does **not** pre-select. `LOW`/`NONE` unmatched.
-  - `catalogActionFor`: empty list / NONE / LOW → `CREATE`; HIGH → `UPDATE`; MEDIUM → `UNCERTAIN`.
-- [`lib/product-match.test.ts`](lib/product-match.test.ts) — 10 tests. Run with `npm test`.
-- No UI change. No database migration. Products are still empty until step 3.
+- Database tables live on Supabase (`prisma migrate` applied).
+- Storage buckets `catalogs` and `invoices` plus authenticated policies (`supabase/setup-storage.sql`).
+- Catalog PDF upload at `/catalogs/new` → Storage → Gemini `gemini-2.0-flash` finds price-list pages and extra charges → matcher → review at `/catalogs/[id]`.
+- First catalog: every row `CREATE` (“N new products”). Later catalogs mix CREATE / UPDATE / UNCERTAIN. Apply is a transaction: insert/update products, **append** BUY history, never delete history.
+- Retry on FAILED re-runs the same Route Handler (not a job queue). Fat PDFs can still time out.
+- Products list reads the real table (still no add-product button). Last-5 buy/sell on the product page is step 4.
 
-Not built yet: catalog PDF OCR, products data UI, invoice camera/OCR, dashboard polish.
+Not built yet: product detail history, invoice camera/OCR, dashboard polish.
 
 ## How to confirm this phase
 
-In the project folder:
+1. Restart `npm run dev` if it was already running.
+2. Sign in → Home → **Upload catalog**.
+3. Pick a manufacturer PDF (start small, under ~20 pages if you can).
+4. First file: review should say **“N new products”**, not a matching failure. Extra charges from the last page should show if they exist. **Apply**.
+5. **Products** should list those rows. Empty-before-catalog was correct; this is what fills it.
+6. Optional: upload a second PDF (or the same one). Review should split new vs price updates.
 
-```bash
-npm test
-```
+If Gemini errors, the review page shows FAILED + Retry. Check that `GEMINI_API_KEY` is in `.env` and the server was restarted after adding it.
 
-All 10 tests should pass. That is the whole check for this step — there is nothing new to click in the browser.
-
-Cases covered:
-
-- `Surf Excel 1kg` → `Surf Excel Detergent 1KG` = HIGH
-- `Surf Excel 1kg` vs `500g` = reject
-- Two sizes of the same name never collapse
-- `Tata Salt 1kg` vs `Tata Salt Iodized 1 KG` = HIGH or MEDIUM
-- Blank/junk OCR = NONE
-- Empty product list (first catalog) = CREATE
-- SKU exact = HIGH; SKU + wrong size = reject
-
-If that looks right, say so and we start **step 3 — catalog OCR**. That step needs a database migration and two Storage buckets; I will give you those clicks before writing the OCR code.
+If that looks right, say so and we start **step 4 — product detail with last 5 buy/sell**.

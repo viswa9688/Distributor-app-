@@ -41,6 +41,7 @@ enum CatalogLineAction {
   CREATE
   UPDATE
   SKIP
+  UNCERTAIN
 }
 
 model Product {
@@ -128,6 +129,8 @@ model CatalogLine {
   matchedProductId String?
   matchedProduct   Product?          @relation(fields: [matchedProductId], references: [id], onDelete: SetNull)
   action           CatalogLineAction @default(CREATE)
+  matchConfidence  MatchConfidence   @default(NONE)
+  matchCandidates  Json?
 
   @@index([catalogImportId])
   @@index([matchedProductId])
