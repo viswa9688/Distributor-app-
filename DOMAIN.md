@@ -56,42 +56,41 @@ Confirm with the user after each step that the app behaves as intended. Do not s
 
 ## Current phase
 
-**Step 1 — Scaffold** is implemented. Waiting for user confirmation before starting step 2 (product matcher).
+**Step 2 — Product matcher** is implemented. Waiting for user confirmation before starting step 3 (catalog OCR).
 
 ## What is built
 
-- Next.js 16 App Router (TypeScript, Tailwind 4) in this folder. Package name is `distributor-app` because npm cannot use the space in the folder name.
-- Git repo initialized **in this folder** (do not use the home-directory git repo).
-- Prisma schema for Product, PriceHistory (append-only), Invoice, InvoiceLine, CatalogImport, CatalogLine, ExtraCharge. No migration has been applied yet — that needs a real Supabase Postgres URL.
-- Supabase Auth wiring: cookie session, middleware, `/login`, `/auth/callback`. Signup gated by `ALLOW_SIGNUP` (default on).
-- Without `.env`, screens still load and show a setup banner. Login form appears only after Supabase env vars exist.
-- PWA shell: web manifest, icons, Serwist (`@serwist/next`). Service worker is **disabled in `next dev`**. Production uses `next build --webpack` because Serwist is webpack-based; Next 16 defaults to Turbopack.
-- Empty mobile screens with bottom nav (Home / Scan / Products):
-  - `/` catalog-first dashboard, empty extra charges, empty recent sales
-  - `/products` empty state: upload a catalog (no add-product button)
-  - `/invoices` empty sales list
-  - `/catalogs/new` and `/invoices/new` are placeholders for later steps
-- `DOMAIN.md` + `.cursor/rules/domain.mdc`: read this file at session start; update it only at phase close.
+Step 1 (scaffold, auth, empty screens) plus:
 
-Not built yet: matcher, catalog PDF OCR, products data UI, invoice camera/OCR, dashboard polish.
+- [`lib/product-match.ts`](lib/product-match.ts) — shared matcher for catalog rows and invoice lines.
+  - Normalize (NFKC, lowercase, punctuation), extract size (`1kg` / `1 KG` / `500g`), drop filler words (`detergent`, `powder`, `pack`, …).
+  - Size mismatch is a hard reject (`1kg` never attaches to `500g`).
+  - Then SKU exact → normalized name exact → Dice + containment.
+  - `HIGH` pre-selects (still editable later). `MEDIUM` returns top 3 and does **not** pre-select. `LOW`/`NONE` unmatched.
+  - `catalogActionFor`: empty list / NONE / LOW → `CREATE`; HIGH → `UPDATE`; MEDIUM → `UNCERTAIN`.
+- [`lib/product-match.test.ts`](lib/product-match.test.ts) — 10 tests. Run with `npm test`.
+- No UI change. No database migration. Products are still empty until step 3.
+
+Not built yet: catalog PDF OCR, products data UI, invoice camera/OCR, dashboard polish.
 
 ## How to confirm this phase
 
-Dev server: `npm run dev` → http://localhost:3000 (already started for this session).
+In the project folder:
 
-Check without Supabase keys:
+```bash
+npm test
+```
 
-1. Home shows “Upload catalog” as the primary action and empty extra charges / sales.
-2. Products says “No products yet” and has no add-product button.
-3. Bottom nav: Home, Scan, Products.
-4. `/login` explains how to add `.env` (no email form until keys exist).
-5. Catalog upload and Scan invoice pages admit they are later steps.
+All 10 tests should pass. That is the whole check for this step — there is nothing new to click in the browser.
 
-Check with Supabase (optional for this step, required before catalog/invoice work):
+Cases covered:
 
-1. Copy `.env.example` to `.env`, paste URL + anon key + Postgres URLs.
-2. Restart `npm run dev`.
-3. Sign up / sign in, then you should land on Home. Sign out returns to login.
-4. Do **not** run `prisma migrate` until you are ready to use the database (step 3). Schema is in the repo; the live DB is still empty.
+- `Surf Excel 1kg` → `Surf Excel Detergent 1KG` = HIGH
+- `Surf Excel 1kg` vs `500g` = reject
+- Two sizes of the same name never collapse
+- `Tata Salt 1kg` vs `Tata Salt Iodized 1 KG` = HIGH or MEDIUM
+- Blank/junk OCR = NONE
+- Empty product list (first catalog) = CREATE
+- SKU exact = HIGH; SKU + wrong size = reject
 
-If this matches what you wanted, say so and we start **step 2 — product matcher**.
+If that looks right, say so and we start **step 3 — catalog OCR**. That step needs a database migration and two Storage buckets; I will give you those clicks before writing the OCR code.
