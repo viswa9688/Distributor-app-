@@ -56,26 +56,25 @@ Confirm with the user after each step that the app behaves as intended. Do not s
 
 ## Current phase
 
-**Step 4 — Products UI (last-5 history)** is implemented. Waiting for user confirmation before starting step 5 (invoice OCR).
+**Step 5 — Invoice OCR** is implemented. Waiting for user confirmation before starting step 6 (dashboard polish).
 
 ## What is built
 
-Steps 1–3, plus:
+Steps 1–4, plus:
 
-- Database tables live on Supabase (`prisma migrate` applied). Storage buckets `catalogs` and `invoices`.
-- Catalog PDF upload → Gemini `gemini-3.6-flash` → review → apply. Apply **appends** BUY history; never deletes it.
-- Product list reads the real table (no add-product button).
-- Product detail at `/products/[id]` shows name, SKU/unit, current buy price.
-- Last 5 buy and last 5 sell are **read** queries: `ORDER BY recordedAt DESC LIMIT 5`. After a first catalog apply, buy has at least one row. Sell stays empty until invoices (step 5). That is correct.
+- Scan at `/invoices/new`: rear camera, gallery fallback. Photo goes to Storage `invoices`.
+- Gemini `gemini-3.6-flash` extracts retailer (string), optional number/date, and line items. Review at `/invoices/[id]` before anything is a sale.
+- Same matcher as catalogs. HIGH pre-selects. MEDIUM shows top 3, no pre-select. LOW/NONE need a picker. Empty product list → all unmatched (`NONE`). Invoices **never** create products.
+- Confirm appends `SELL` history only for lines with a `productId`. Unmatched lines stay raw text. History is never deleted. Last-5 on the product page is still a read `LIMIT 5`.
 
-Not built yet: invoice camera/OCR, dashboard polish.
+Not built yet: dashboard polish (home extra charges / recent sales).
 
 ## How to confirm this phase
 
-1. Sign in → **Products**.
-2. Open a product created by the catalog you applied.
-3. You should see **Last 5 buy prices** with the catalog price (newest first). Not a stub.
-4. **Last 5 sell prices** should still be empty (“come from invoices”).
-5. Optional: apply a second catalog that updates the same SKU. Buy list should grow (up to 5); older rows remain in the database.
+1. Have products from an applied catalog.
+2. Sign in → **Scan** (or Home → Scan invoice).
+3. Take a photo or pick from gallery. Wait for review.
+4. Fix retailer name if needed. HIGH rows should be pre-selected. Leave junk unmatched.
+5. **Confirm sale**. **Sales** should list it. Open a matched product: **Last 5 sell** should show that unit price.
 
-If that looks right, say so and we start **step 5 — invoice camera OCR**.
+If OCR finds no lines, stay on Scan with an error and try a clearer photo (no invoice row is created).

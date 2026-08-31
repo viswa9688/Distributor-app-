@@ -116,6 +116,127 @@ export async function extractCatalogFromPdf(
   };
 }
 
+export type ExtractedInvoiceLine = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+
+export type ExtractedInvoice = {
+  retailerName: string;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  lines: ExtractedInvoiceLine[];
+};
+
+const INVOICE_PROMPT = `You are reading a retailer invoice photo for a distributor (sale to a shop).
+
+The photo may be printed or handwritten. Extract only line items with a product description and a unit price.
+
+Return:
+- retailerName: shop or retailer name if visible, else empty string
+- invoiceNumber: if visible
+- invoiceDate: YYYY-MM-DD if a date is visible, else null
+- lines: each with description, quantity (default 1), unitPrice, lineTotal (quantity * unitPrice if missing)
+
+Do not invent products. Skip rows with no price. Do not create catalog SKUs.`;
+
+const invoiceSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    retailerName: { type: SchemaType.STRING },
+    invoiceNumber: { type: SchemaType.STRING, nullable: true },
+    invoiceDate: { type: SchemaType.STRING, nullable: true },
+    lines: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          description: { type: SchemaType.STRING },
+          quantity: { type: SchemaType.NUMBER },
+          unitPrice: { type: SchemaType.NUMBER },
+          lineTotal: { type: SchemaType.NUMBER },
+        },
+        required: ["description", "unitPrice"],
+      },
+    },
+  },
+  required: ["retailerName", "lines"],
+};
+
+const IMAGE_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+
+export async function extractInvoiceFromImage(
+  imageBytes: Buffer,
+  mimeType: string,
+): Promise<ExtractedInvoice> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is missing. Add it to .env and restart.");
+  }
+
+  const mime = IMAGE_MIME.has(mimeType) ? mimeType : "image/jpeg";
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: "gemini-3.6-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: invoiceSchema,
+    },
+  });
+
+  const result = await model.generateContent([
+    { text: INVOICE_PROMPT },
+    {
+      inlineData: {
+        mimeType: mime,
+        data: imageBytes.toString("base64"),
+      },
+    },
+  ]);
+
+  const text = result.response.text();
+  const parsed = JSON.parse(text) as ExtractedInvoice;
+  const lines = (parsed.lines ?? [])
+    .map((line) => {
+      const quantity = Number.isFinite(Number(line.quantity)) && Number(line.quantity) > 0
+        ? Number(line.quantity)
+        : 1;
+      const unitPrice = Number(line.unitPrice);
+      const lineTotal = Number.isFinite(Number(line.lineTotal))
+        ? Number(line.lineTotal)
+        : quantity * unitPrice;
+      return {
+        description: String(line.description ?? "").trim(),
+        quantity,
+        unitPrice,
+        lineTotal,
+      };
+    })
+    .filter(
+      (line) =>
+        line.description.length > 0 &&
+        Number.isFinite(line.unitPrice) &&
+        Number.isFinite(line.lineTotal),
+    );
+
+  return {
+    retailerName: String(parsed.retailerName ?? "").trim(),
+    invoiceNumber: parsed.invoiceNumber
+      ? String(parsed.invoiceNumber).trim()
+      : null,
+    invoiceDate: parsed.invoiceDate ? String(parsed.invoiceDate).trim() : null,
+    lines,
+  };
+}
+
 function toNum(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
