@@ -1,25 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient;
-  prismaTx?: PrismaClient;
-};
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+const databaseUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 
-/**
- * Session / direct Postgres. The pooler on port 6543 (transaction mode) cannot
- * keep Prisma interactive transactions open — they die with "Transaction not found".
- */
-export const prismaTx =
-  globalForPrisma.prismaTx ??
-  new PrismaClient({
-    datasources: {
-      db: { url: process.env.DIRECT_URL ?? process.env.DATABASE_URL },
-    },
-  });
+/** One client, session/direct URL. Pooler (6543) hid Apply writes from the Products list. */
+export const prisma = globalForPrisma.prisma ?? new PrismaClient(
+  databaseUrl ? { datasources: { db: { url: databaseUrl } } } : undefined,
+);
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
-  globalForPrisma.prismaTx = prismaTx;
 }

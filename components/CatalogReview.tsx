@@ -92,8 +92,8 @@ export function CatalogReview({
         return;
       }
       setStatus("APPLIED");
-      router.push("/products");
       router.refresh();
+      router.replace("/products");
     } finally {
       setPending(false);
     }

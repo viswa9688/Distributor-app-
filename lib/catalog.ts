@@ -1,4 +1,4 @@
-import { prisma, prismaTx } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { extractCatalogFromPdf } from "@/lib/gemini";
 import {
   catalogActionFor,
@@ -84,7 +84,7 @@ export async function processCatalogImport(importId: string) {
       percent: charge.percent ?? undefined,
     }));
 
-    await prismaTx.$transaction(
+    await prisma.$transaction(
       async (tx) => {
         await tx.catalogLine.deleteMany({ where: { catalogImportId: importId } });
         await tx.extraCharge.deleteMany({ where: { catalogImportId: importId } });
@@ -133,7 +133,7 @@ export async function applyCatalogImport(importId: string) {
     );
   }
 
-  await prismaTx.$transaction(
+  await prisma.$transaction(
     async (tx) => {
       const creates = catalog.lines.filter((l) => l.action === "CREATE");
       const updates = catalog.lines.filter((l) => l.action === "UPDATE");
