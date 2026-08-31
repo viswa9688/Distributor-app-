@@ -56,25 +56,23 @@ Confirm with the user after each step that the app behaves as intended. Do not s
 
 ## Current phase
 
-**Step 5 — Invoice OCR** is implemented. Waiting for user confirmation before starting step 6 (dashboard polish).
+**Step 6 — Dashboard polish** is implemented. This is the last v1 build step. Waiting for an end-to-end confirm.
 
 ## What is built
 
-Steps 1–4, plus:
+v1 complete:
 
-- Scan at `/invoices/new`: rear camera, gallery fallback. Photo goes to Storage `invoices`.
-- Gemini `gemini-3.6-flash` extracts retailer (string), optional number/date, and line items. Review at `/invoices/[id]` before anything is a sale.
-- Same matcher as catalogs. HIGH pre-selects. MEDIUM shows top 3, no pre-select. LOW/NONE need a picker. Empty product list → all unmatched (`NONE`). Invoices **never** create products.
-- Confirm appends `SELL` history only for lines with a `productId`. Unmatched lines stay raw text. History is never deleted. Last-5 on the product page is still a read `LIMIT 5`.
-
-Not built yet: dashboard polish (home extra charges / recent sales).
+- Catalog-first Home: empty product table pushes **Upload catalog**; after apply, Home shows product count, extra charges from applied catalogs, recent **confirmed** sales, and unfinished catalog/invoice reviews.
+- Scan and Sales empty states also point at a catalog when there are no products.
+- Catalog OCR → products + last-5 buy. Invoice OCR → confirm sale + last-5 sell (`LIMIT 5` reads). Invoices never create products.
 
 ## How to confirm this phase
 
-1. Have products from an applied catalog.
-2. Sign in → **Scan** (or Home → Scan invoice).
-3. Take a photo or pick from gallery. Wait for review.
-4. Fix retailer name if needed. HIGH rows should be pre-selected. Leave junk unmatched.
-5. **Confirm sale**. **Sales** should list it. Open a matched product: **Last 5 sell** should show that unit price.
+Walk the full loop once:
 
-If OCR finds no lines, stay on Scan with an error and try a clearer photo (no invoice row is created).
+1. Home with no products: catalog is the main action; extra charges and sales empty.
+2. Upload catalog → review “N new products” → Apply → Products list fills → product detail last-5 **buy**.
+3. Home now shows extra charges if the PDF had them, and Scan is the main action.
+4. Scan invoice → confirm → Home **Recent sales** and product last-5 **sell**.
+
+If that looks right, v1 is done. Next work is outside this six-step sequence.

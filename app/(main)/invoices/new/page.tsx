@@ -1,6 +1,10 @@
+import { EmptyState } from "@/components/EmptyState";
 import { InvoiceCapture } from "@/components/InvoiceCapture";
+import { prisma } from "@/lib/prisma";
 
-export default function NewInvoicePage() {
+export default async function NewInvoicePage() {
+  const productCount = await prisma.product.count();
+
   return (
     <main className="flex flex-col gap-4 pb-6">
       <div>
@@ -10,6 +14,14 @@ export default function NewInvoicePage() {
           Unmatched lines stay as text.
         </p>
       </div>
+      {productCount === 0 ? (
+        <EmptyState
+          title="Catalog first"
+          body="There are no products yet. Upload a manufacturer catalog so invoice lines can match. You can still scan; unmatched lines will not write sell history."
+          actionHref="/catalogs/new"
+          actionLabel="Upload a manufacturer catalog"
+        />
+      ) : null}
       <InvoiceCapture />
     </main>
   );

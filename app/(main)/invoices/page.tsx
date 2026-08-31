@@ -3,16 +3,19 @@ import { EmptyState } from "@/components/EmptyState";
 import { prisma } from "@/lib/prisma";
 
 export default async function InvoicesPage() {
-  const invoices = await prisma.invoice.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      retailerName: true,
-      status: true,
-      createdAt: true,
-      invoiceNumber: true,
-    },
-  });
+  const [invoices, productCount] = await Promise.all([
+    prisma.invoice.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        retailerName: true,
+        status: true,
+        createdAt: true,
+        invoiceNumber: true,
+      },
+    }),
+    prisma.product.count(),
+  ]);
 
   return (
     <main className="flex flex-col gap-4 pb-6">
@@ -33,9 +36,17 @@ export default async function InvoicesPage() {
       {invoices.length === 0 ? (
         <EmptyState
           title="No invoices yet"
-          body="Point the camera at a retailer invoice after you have products from a catalog."
-          actionHref="/invoices/new"
-          actionLabel="Scan invoice"
+          body={
+            productCount === 0
+              ? "Upload and apply a manufacturer catalog first. Then scan a retailer invoice."
+              : "Point the camera at a retailer invoice after you have products from a catalog."
+          }
+          actionHref={productCount === 0 ? "/catalogs/new" : "/invoices/new"}
+          actionLabel={
+            productCount === 0
+              ? "Upload a manufacturer catalog"
+              : "Scan invoice"
+          }
         />
       ) : (
         <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
