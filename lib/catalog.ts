@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaTx } from "@/lib/prisma";
 import { extractCatalogFromPdf } from "@/lib/gemini";
 import {
   catalogActionFor,
@@ -7,7 +7,7 @@ import {
   type ProductCandidate,
 } from "@/lib/product-match";
 import { createClient } from "@/lib/supabase/server";
-import type { CatalogLineAction, Prisma } from "@prisma/client";
+import type { CatalogLineAction } from "@prisma/client";
 
 export async function processCatalogImport(importId: string) {
   const catalog = await prisma.catalogImport.findUnique({
@@ -58,48 +58,49 @@ export async function processCatalogImport(importId: string) {
       sizeUnit: p.sizeUnit,
     }));
 
-    await prisma.$transaction(async (tx) => {
-      await tx.catalogLine.deleteMany({ where: { catalogImportId: importId } });
-      await tx.extraCharge.deleteMany({ where: { catalogImportId: importId } });
-
-      for (const row of extracted.products) {
-        const match = matchProduct(row.name, candidates, row.sku);
-        const action = catalogActionFor(match);
-        await tx.catalogLine.create({
-          data: {
-            catalogImportId: importId,
-            rawName: row.name,
-            sku: row.sku,
-            unit: row.unit,
-            price: row.price,
-            matchedProductId: match.selectedProductId,
-            action: action as CatalogLineAction,
-            matchConfidence: match.confidence,
-            matchCandidates: match.candidates.map((c) => ({
-              productId: c.productId,
-              name: c.name,
-              score: c.score,
-            })),
-          },
-        });
-      }
-
-      for (const charge of extracted.extraCharges) {
-        await tx.extraCharge.create({
-          data: {
-            catalogImportId: importId,
-            name: charge.name,
-            amount: charge.amount ?? undefined,
-            percent: charge.percent ?? undefined,
-          },
-        });
-      }
-
-      await tx.catalogImport.update({
-        where: { id: importId },
-        data: { status: "REVIEW", error: null },
-      });
+    const lines = extracted.products.map((row) => {
+      const match = matchProduct(row.name, candidates, row.sku);
+      const action = catalogActionFor(match);
+      return {
+        catalogImportId: importId,
+        rawName: row.name,
+        sku: row.sku,
+        unit: row.unit,
+        price: row.price,
+        matchedProductId: match.selectedProductId,
+        action: action as CatalogLineAction,
+        matchConfidence: match.confidence,
+        matchCandidates: match.candidates.map((c) => ({
+          productId: c.productId,
+          name: c.name,
+          score: c.score,
+        })),
+      };
     });
+    const charges = extracted.extraCharges.map((charge) => ({
+      catalogImportId: importId,
+      name: charge.name,
+      amount: charge.amount ?? undefined,
+      percent: charge.percent ?? undefined,
+    }));
+
+    await prismaTx.$transaction(
+      async (tx) => {
+        await tx.catalogLine.deleteMany({ where: { catalogImportId: importId } });
+        await tx.extraCharge.deleteMany({ where: { catalogImportId: importId } });
+        if (lines.length > 0) {
+          await tx.catalogLine.createMany({ data: lines });
+        }
+        if (charges.length > 0) {
+          await tx.extraCharge.createMany({ data: charges });
+        }
+        await tx.catalogImport.update({
+          where: { id: importId },
+          data: { status: "REVIEW", error: null },
+        });
+      },
+      { maxWait: 15_000, timeout: 60_000 },
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Catalog OCR failed.";
     await prisma.catalogImport.update({
@@ -132,66 +133,68 @@ export async function applyCatalogImport(importId: string) {
     );
   }
 
-  await prisma.$transaction(async (tx) => {
-    for (const line of catalog.lines) {
-      if (line.action === "SKIP") continue;
+  await prismaTx.$transaction(
+    async (tx) => {
+      const creates = catalog.lines.filter((l) => l.action === "CREATE");
+      const updates = catalog.lines.filter((l) => l.action === "UPDATE");
 
-      if (line.action === "CREATE") {
-        const parsed = parseIdentity(line.rawName, line.sku);
-        const product = await tx.product.create({
-          data: {
-            name: line.rawName,
-            sku: line.sku,
-            unit: line.unit,
-            currentBuyPrice: line.price,
-            normalizedName:
-              parsed.normalizedName.length > 0
-                ? parsed.normalizedName
-                : line.rawName.toLowerCase(),
-            sizeValue: parsed.size?.value,
-            sizeUnit: parsed.size?.unit,
-          },
+      if (creates.length > 0) {
+        const created = await tx.product.createManyAndReturn({
+          data: creates.map((line) => {
+            const parsed = parseIdentity(line.rawName, line.sku);
+            return {
+              name: line.rawName,
+              sku: line.sku,
+              unit: line.unit,
+              currentBuyPrice: line.price,
+              normalizedName:
+                parsed.normalizedName.length > 0
+                  ? parsed.normalizedName
+                  : line.rawName.toLowerCase(),
+              sizeValue: parsed.size?.value,
+              sizeUnit: parsed.size?.unit,
+            };
+          }),
         });
-        await tx.priceHistory.create({
-          data: {
+        await tx.priceHistory.createMany({
+          data: created.map((product, i) => ({
             productId: product.id,
-            kind: "BUY",
-            price: line.price,
-            sourceType: "CATALOG",
+            kind: "BUY" as const,
+            price: creates[i].price,
+            sourceType: "CATALOG" as const,
             sourceId: catalog.id,
-          },
+          })),
         });
-        continue;
       }
 
-      if (line.action === "UPDATE") {
+      for (const line of updates) {
         if (!line.matchedProductId) {
           throw new Error(
             `Row “${line.rawName}” is set to update but has no matched product.`,
           );
         }
-        const updates: Prisma.ProductUpdateInput = {
-          currentBuyPrice: line.price,
-        };
         await tx.product.update({
           where: { id: line.matchedProductId },
-          data: updates,
-        });
-        await tx.priceHistory.create({
-          data: {
-            productId: line.matchedProductId,
-            kind: "BUY",
-            price: line.price,
-            sourceType: "CATALOG",
-            sourceId: catalog.id,
-          },
+          data: { currentBuyPrice: line.price },
         });
       }
-    }
+      if (updates.length > 0) {
+        await tx.priceHistory.createMany({
+          data: updates.map((line) => ({
+            productId: line.matchedProductId as string,
+            kind: "BUY" as const,
+            price: line.price,
+            sourceType: "CATALOG" as const,
+            sourceId: catalog.id,
+          })),
+        });
+      }
 
-    await tx.catalogImport.update({
-      where: { id: importId },
-      data: { status: "APPLIED", error: null },
-    });
-  });
+      await tx.catalogImport.update({
+        where: { id: importId },
+        data: { status: "APPLIED", error: null },
+      });
+    },
+    { maxWait: 15_000, timeout: 60_000 },
+  );
 }

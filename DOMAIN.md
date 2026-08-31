@@ -30,7 +30,7 @@ The catalog pipeline is the **only** way `Product` rows are created in v1.
 - One distributor org; staff share the same products/invoices.
 - Next.js App Router (UI + Route Handlers). No separate backend.
 - PostgreSQL via Supabase + Prisma. Supabase Auth. Supabase Storage (`invoices`, `catalogs`).
-- Gemini `gemini-2.0-flash` for OCR. Never auto-commit OCR; review screen first.
+- Gemini `gemini-3.6-flash` for OCR (`gemini-2.0-flash` was retired by Google with a 404). Never auto-commit OCR; review screen first.
 - PWA via Serwist (not `next-pwa`).
 - Host: Vercel.
 - Retailer is a **string** on the invoice, not a table (known debt).
@@ -64,7 +64,7 @@ Steps 1–2, plus:
 
 - Database tables live on Supabase (`prisma migrate` applied).
 - Storage buckets `catalogs` and `invoices` plus authenticated policies (`supabase/setup-storage.sql`).
-- Catalog PDF upload at `/catalogs/new` → Storage → Gemini `gemini-2.0-flash` finds price-list pages and extra charges → matcher → review at `/catalogs/[id]`.
+- Catalog PDF upload at `/catalogs/new` → Storage → Gemini `gemini-3.6-flash` finds price-list pages and extra charges → matcher → review at `/catalogs/[id]`.
 - First catalog: every row `CREATE` (“N new products”). Later catalogs mix CREATE / UPDATE / UNCERTAIN. Apply is a transaction: insert/update products, **append** BUY history, never delete history.
 - Retry on FAILED re-runs the same Route Handler (not a job queue). Fat PDFs can still time out.
 - Products list reads the real table (still no add-product button). Last-5 buy/sell on the product page is step 4.
