@@ -56,30 +56,26 @@ Confirm with the user after each step that the app behaves as intended. Do not s
 
 ## Current phase
 
-**Step 3 — Catalog OCR** is implemented. Waiting for user confirmation before starting step 4 (product detail / last-5 history).
+**Step 4 — Products UI (last-5 history)** is implemented. Waiting for user confirmation before starting step 5 (invoice OCR).
 
 ## What is built
 
-Steps 1–2, plus:
+Steps 1–3, plus:
 
-- Database tables live on Supabase (`prisma migrate` applied).
-- Storage buckets `catalogs` and `invoices` plus authenticated policies (`supabase/setup-storage.sql`).
-- Catalog PDF upload at `/catalogs/new` → Storage → Gemini `gemini-3.6-flash` finds price-list pages and extra charges → matcher → review at `/catalogs/[id]`.
-- First catalog: every row `CREATE` (“N new products”). Later catalogs mix CREATE / UPDATE / UNCERTAIN. Apply is a transaction: insert/update products, **append** BUY history, never delete history.
-- Retry on FAILED re-runs the same Route Handler (not a job queue). Fat PDFs can still time out.
-- Products list reads the real table (still no add-product button). Last-5 buy/sell on the product page is step 4.
+- Database tables live on Supabase (`prisma migrate` applied). Storage buckets `catalogs` and `invoices`.
+- Catalog PDF upload → Gemini `gemini-3.6-flash` → review → apply. Apply **appends** BUY history; never deletes it.
+- Product list reads the real table (no add-product button).
+- Product detail at `/products/[id]` shows name, SKU/unit, current buy price.
+- Last 5 buy and last 5 sell are **read** queries: `ORDER BY recordedAt DESC LIMIT 5`. After a first catalog apply, buy has at least one row. Sell stays empty until invoices (step 5). That is correct.
 
-Not built yet: product detail history, invoice camera/OCR, dashboard polish.
+Not built yet: invoice camera/OCR, dashboard polish.
 
 ## How to confirm this phase
 
-1. Restart `npm run dev` if it was already running.
-2. Sign in → Home → **Upload catalog**.
-3. Pick a manufacturer PDF (start small, under ~20 pages if you can).
-4. First file: review should say **“N new products”**, not a matching failure. Extra charges from the last page should show if they exist. **Apply**.
-5. **Products** should list those rows. Empty-before-catalog was correct; this is what fills it.
-6. Optional: upload a second PDF (or the same one). Review should split new vs price updates.
+1. Sign in → **Products**.
+2. Open a product created by the catalog you applied.
+3. You should see **Last 5 buy prices** with the catalog price (newest first). Not a stub.
+4. **Last 5 sell prices** should still be empty (“come from invoices”).
+5. Optional: apply a second catalog that updates the same SKU. Buy list should grow (up to 5); older rows remain in the database.
 
-If Gemini errors, the review page shows FAILED + Retry. Check that `GEMINI_API_KEY` is in `.env` and the server was restarted after adding it.
-
-If that looks right, say so and we start **step 4 — product detail with last 5 buy/sell**.
+If that looks right, say so and we start **step 5 — invoice camera OCR**.
