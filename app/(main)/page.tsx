@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
+import { isDatabaseConfigured, isSupabaseConfigured } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
 function formatCharge(amount: { toString(): string } | null, percent: { toString(): string } | null) {
@@ -9,6 +10,20 @@ function formatCharge(amount: { toString(): string } | null, percent: { toString
 }
 
 export default async function HomePage() {
+  if (!isSupabaseConfigured() || !isDatabaseConfigured()) {
+    return (
+      <main className="flex flex-col gap-4 pb-6">
+        <h1 className="text-2xl font-semibold">Home</h1>
+        <EmptyState
+          title="App is not configured on this host"
+          body="Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, DATABASE_URL, DIRECT_URL, and GEMINI_API_KEY in the host’s environment, then redeploy."
+          actionHref="/login"
+          actionLabel="Open sign in"
+        />
+      </main>
+    );
+  }
+
   const [
     productCount,
     extraCharges,

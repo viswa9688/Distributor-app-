@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaTx } from "@/lib/prisma";
 import { extractInvoiceFromImage } from "@/lib/gemini";
 import { matchProduct, type ProductCandidate } from "@/lib/product-match";
 import { createClient } from "@/lib/supabase/server";
@@ -63,7 +63,7 @@ export async function createInvoiceFromUpload(
     sizeUnit: p.sizeUnit,
   }));
 
-  const invoice = await prisma.$transaction(
+  const invoice = await prismaTx.$transaction(
     async (tx) => {
       const created = await tx.invoice.create({
         data: {
@@ -124,7 +124,7 @@ export async function confirmInvoice(
 
   const name = retailerName?.trim();
 
-  await prisma.$transaction(
+  await prismaTx.$transaction(
     async (tx) => {
       const matched = invoice.lines.filter((line) => line.productId);
       if (matched.length > 0) {

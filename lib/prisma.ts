@@ -1,14 +1,28 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  prismaTx?: PrismaClient;
+};
 
-const databaseUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+const pooledUrl = process.env.DATABASE_URL;
+const directUrl = process.env.DIRECT_URL ?? pooledUrl;
 
-/** One client, session/direct URL. Pooler (6543) hid Apply writes from the Products list. */
+/** Pooled URL for page reads (faster on Vercel). */
 export const prisma = globalForPrisma.prisma ?? new PrismaClient(
-  databaseUrl ? { datasources: { db: { url: databaseUrl } } } : undefined,
+  pooledUrl || directUrl
+    ? { datasources: { db: { url: pooledUrl ?? directUrl } } }
+    : undefined,
 );
+
+/** Direct/session URL for interactive transactions (PgBouncer 6543 cannot hold them). */
+export const prismaTx =
+  globalForPrisma.prismaTx ??
+  new PrismaClient(
+    directUrl ? { datasources: { db: { url: directUrl } } } : undefined,
+  );
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
+  globalForPrisma.prismaTx = prismaTx;
 }

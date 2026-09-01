@@ -23,13 +23,9 @@ export default function LoginPage() {
           <div className="space-y-3 text-sm text-slate-700">
             <p className="font-medium text-slate-900">Supabase is not configured yet.</p>
             <ol className="list-decimal space-y-2 pl-4">
-              <li>Create a Supabase project (Email auth on).</li>
-              <li>
-                Copy <code className="rounded bg-slate-100 px-1">.env.example</code> to{" "}
-                <code className="rounded bg-slate-100 px-1">.env</code>.
-              </li>
-              <li>Paste the project URL, anon key, and Postgres URLs.</li>
-              <li>Restart the dev server.</li>
+              <li>In Vercel → Project → Settings → Environment Variables, add the same keys as <code className="rounded bg-slate-100 px-1">.env</code> (including <code className="rounded bg-slate-100 px-1">NEXT_PUBLIC_</code> keys).</li>
+              <li>Redeploy. Public keys are baked in at build time.</li>
+              <li>In Supabase Auth, add <code className="rounded bg-slate-100 px-1">https://your-app.vercel.app/auth/callback</code> to redirect URLs.</li>
             </ol>
           </div>
         )}

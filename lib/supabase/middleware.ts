@@ -5,8 +5,23 @@ export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  const path = request.nextUrl.pathname;
+  const isPublic =
+    path.startsWith("/login") ||
+    path.startsWith("/auth") ||
+    path.startsWith("/serwist") ||
+    path === "/sw.js" ||
+    path === "/manifest.webmanifest" ||
+    path === "/manifest.webmanifest/";
+
   if (!url || !key) {
-    return NextResponse.next({ request });
+    if (isPublic) {
+      return NextResponse.next({ request });
+    }
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
   }
 
   let supabaseResponse = NextResponse.next({ request });
@@ -29,17 +44,9 @@ export async function updateSession(request: NextRequest) {
   });
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const path = request.nextUrl.pathname;
-  const isPublic =
-    path.startsWith("/login") ||
-    path.startsWith("/auth") ||
-    path.startsWith("/serwist") ||
-    path === "/sw.js" ||
-    path === "/manifest.webmanifest" ||
-    path === "/manifest.webmanifest/";
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
 
   if (!user && !isPublic) {
     const redirectUrl = request.nextUrl.clone();

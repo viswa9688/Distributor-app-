@@ -1,20 +1,34 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 
 export function AppShell({
   children,
-  email,
   authConfigured,
 }: {
   children: React.ReactNode;
-  email: string | null;
   authConfigured: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authConfigured) return;
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => {
+      setEmail(data.session?.user.email ?? null);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail(session?.user.email ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, [authConfigured]);
 
   async function signOut() {
     const supabase = createClient();

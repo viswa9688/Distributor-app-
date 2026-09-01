@@ -5,6 +5,10 @@ export function isSupabaseConfigured(): boolean {
   );
 }
 
+export function isDatabaseConfigured(): boolean {
+  return Boolean(process.env.DIRECT_URL || process.env.DATABASE_URL);
+}
+
 export function isSignupAllowed(): boolean {
   return process.env.ALLOW_SIGNUP !== "false";
 }
