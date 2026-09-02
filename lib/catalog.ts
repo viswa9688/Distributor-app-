@@ -3,9 +3,9 @@ import { extractCatalogFromPdf } from "@/lib/gemini";
 import {
   catalogActionFor,
   matchProduct,
-  parseIdentity,
   type ProductCandidate,
 } from "@/lib/product-match";
+import { buildProductFields } from "@/lib/product";
 import { createClient } from "@/lib/supabase/server";
 import type { CatalogLineAction } from "@prisma/client";
 
@@ -141,22 +141,10 @@ export async function applyCatalogImport(importId: string) {
 
       if (creates.length > 0) {
         const created = await tx.product.createManyAndReturn({
-          data: creates.map((line) => {
-            const parsed = parseIdentity(line.rawName, line.sku);
-            return {
-              manufacturerId: catalog.manufacturerId,
-              name: line.rawName,
-              sku: line.sku,
-              unit: line.unit,
-              currentBuyPrice: line.price,
-              normalizedName:
-                parsed.normalizedName.length > 0
-                  ? parsed.normalizedName
-                  : line.rawName.toLowerCase(),
-              sizeValue: parsed.size?.value,
-              sizeUnit: parsed.size?.unit,
-            };
-          }),
+          data: creates.map((line) => ({
+            manufacturerId: catalog.manufacturerId,
+            ...buildProductFields(line.rawName, line.sku, line.unit, line.price),
+          })),
         });
         await tx.priceHistory.createMany({
           data: created.map((product, i) => ({
@@ -177,7 +165,7 @@ export async function applyCatalogImport(importId: string) {
         }
         await tx.product.update({
           where: { id: line.matchedProductId },
-          data: { currentBuyPrice: line.price },
+          data: buildProductFields(line.rawName, line.sku, line.unit, line.price),
         });
       }
       if (updates.length > 0) {

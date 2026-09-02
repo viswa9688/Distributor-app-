@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EmptyState } from "@/components/EmptyState";
+import { ManufacturerProducts } from "@/components/ManufacturerProducts";
 import { prisma } from "@/lib/prisma";
 
 function formatCharge(
@@ -27,6 +27,7 @@ export default async function ManufacturerDetailPage({
           id: true,
           name: true,
           sku: true,
+          unit: true,
           currentBuyPrice: true,
         },
       },
@@ -76,33 +77,16 @@ export default async function ManufacturerDetailPage({
         </p>
       </Link>
 
-      {manufacturer.products.length === 0 ? (
-        <EmptyState
-          title="No products yet"
-          body="Scan a manufacturer catalog PDF. The first one creates every product for this supplier."
-        />
-      ) : (
-        <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-          {manufacturer.products.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={`/products/${p.id}`}
-                className="flex items-center justify-between px-4 py-3"
-              >
-                <span>
-                  <span className="block text-sm font-medium">{p.name}</span>
-                  {p.sku ? (
-                    <span className="block text-xs text-slate-500">{p.sku}</span>
-                  ) : null}
-                </span>
-                <span className="text-sm text-slate-700">
-                  {Number(p.currentBuyPrice)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ManufacturerProducts
+        manufacturerId={manufacturer.id}
+        initialProducts={manufacturer.products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          unit: p.unit,
+          currentBuyPrice: Number(p.currentBuyPrice),
+        }))}
+      />
 
       {extraCharges.length > 0 ? (
         <section className="flex flex-col gap-2">

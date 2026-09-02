@@ -16,6 +16,7 @@ enum PriceKind {
 enum PriceSourceType {
   CATALOG
   INVOICE
+  MANUAL
 }
 
 enum InvoiceStatus {

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/EmptyState";
+import { ProductEditor } from "@/components/ProductEditor";
 import { lastFivePrices } from "@/lib/price-history";
 import { prisma } from "@/lib/prisma";
 
@@ -13,6 +13,13 @@ function formatWhen(date: Date) {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function sourceLabel(sourceType: string) {
+  if (sourceType === "CATALOG") return "Catalog";
+  if (sourceType === "INVOICE") return "Invoice";
+  if (sourceType === "MANUAL") return "Manual";
+  return sourceType;
 }
 
 function HistoryList({
@@ -40,7 +47,7 @@ function HistoryList({
                 <span className="block text-xs text-slate-500">{formatWhen(row.recordedAt)}</span>
               </span>
               <span className="text-xs uppercase tracking-wide text-slate-500">
-                {row.sourceType === "CATALOG" ? "Catalog" : "Invoice"}
+                {sourceLabel(row.sourceType)}
               </span>
             </li>
           ))}
@@ -76,36 +83,26 @@ export default async function ProductDetailPage({
 
   return (
     <main className="flex flex-col gap-6 pb-6">
-      <div>
-        <Link href="/products" className="text-sm text-slate-600 underline">
-          Products
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold">{product.name}</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          <Link
-            href={`/manufacturers/${product.manufacturer.id}`}
-            className="underline"
-          >
-            {product.manufacturer.name}
-          </Link>
-          {product.sku ? ` · ${product.sku}` : " · No SKU"}
-          {product.unit ? ` · ${product.unit}` : ""}
-        </p>
-        <p className="mt-2 text-base font-medium">
-          Current buy {formatPrice(product.currentBuyPrice)}
-        </p>
-      </div>
+      <ProductEditor
+        productId={product.id}
+        manufacturerId={product.manufacturer.id}
+        manufacturerName={product.manufacturer.name}
+        initialName={product.name}
+        initialSku={product.sku}
+        initialUnit={product.unit}
+        initialBuyPrice={Number(product.currentBuyPrice)}
+      />
 
       <HistoryList
         title="Last 5 buy prices"
         emptyTitle="No buy prices yet"
-        emptyBody="Buy prices are appended when you apply a manufacturer catalog. The full series stays in the database; this list only shows five."
+        emptyBody="Buy prices are appended when you apply a catalog or edit the buy price manually. The full series stays in the database; this list only shows five."
         rows={buys}
       />
       <HistoryList
         title="Last 5 sell prices"
         emptyTitle="No sell prices yet"
-        emptyBody="Sell prices come from retailer invoices. That is the next step. The full series is kept; this list only shows five."
+        emptyBody="Sell prices come from retailer invoices. The full series is kept; this list only shows five."
         rows={sells}
       />
     </main>
