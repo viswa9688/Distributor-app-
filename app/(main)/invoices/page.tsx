@@ -41,7 +41,7 @@ export default async function InvoicesPage() {
               ? "Upload and apply a manufacturer catalog first. Then scan a retailer invoice."
               : "Point the camera at a retailer invoice after you have products from a catalog."
           }
-          actionHref={productCount === 0 ? "/catalogs/new" : "/invoices/new"}
+          actionHref={productCount === 0 ? "/manufacturers/new" : "/invoices/new"}
           actionLabel={
             productCount === 0
               ? "Upload a manufacturer catalog"

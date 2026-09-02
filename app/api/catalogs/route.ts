@@ -9,15 +9,29 @@ export async function POST(request: Request) {
   const { user, response } = await requireUser();
   if (!user) return response;
 
-  const body = (await request.json()) as { filePath?: string };
+  const body = (await request.json()) as { filePath?: string; manufacturerId?: string };
   const filePath = body.filePath?.trim();
+  const manufacturerId = body.manufacturerId?.trim();
+
   if (!filePath) {
     return NextResponse.json({ error: "filePath is required." }, { status: 400 });
+  }
+  if (!manufacturerId) {
+    return NextResponse.json({ error: "manufacturerId is required." }, { status: 400 });
+  }
+
+  const manufacturer = await prisma.manufacturer.findUnique({
+    where: { id: manufacturerId },
+    select: { id: true },
+  });
+  if (!manufacturer) {
+    return NextResponse.json({ error: "Manufacturer not found." }, { status: 404 });
   }
 
   const catalog = await prisma.catalogImport.create({
     data: {
       filePath,
+      manufacturerId,
       createdBy: user.id,
       status: "PROCESSING",
     },

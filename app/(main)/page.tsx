@@ -3,7 +3,10 @@ import { EmptyState } from "@/components/EmptyState";
 import { isDatabaseConfigured, isSupabaseConfigured } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
-function formatCharge(amount: { toString(): string } | null, percent: { toString(): string } | null) {
+function formatCharge(
+  amount: { toString(): string } | null,
+  percent: { toString(): string } | null,
+) {
   if (amount !== null) return Number(amount).toFixed(2);
   if (percent !== null) return `${Number(percent)}%`;
   return "—";
@@ -25,12 +28,21 @@ export default async function HomePage() {
   }
 
   const [
+    manufacturers,
     productCount,
     extraCharges,
     recentSales,
     catalogReviews,
     invoiceReviews,
   ] = await Promise.all([
+    prisma.manufacturer.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { products: true } },
+      },
+    }),
     prisma.product.count(),
     prisma.extraCharge.findMany({
       where: { catalogImport: { status: "APPLIED" } },
@@ -42,6 +54,11 @@ export default async function HomePage() {
         amount: true,
         percent: true,
         catalogImportId: true,
+        catalogImport: {
+          select: {
+            manufacturer: { select: { id: true, name: true } },
+          },
+        },
       },
     }),
     prisma.invoice.findMany({
@@ -59,7 +76,11 @@ export default async function HomePage() {
       where: { status: "REVIEW" },
       orderBy: { createdAt: "desc" },
       take: 3,
-      select: { id: true, createdAt: true },
+      select: {
+        id: true,
+        createdAt: true,
+        manufacturer: { select: { name: true } },
+      },
     }),
     prisma.invoice.findMany({
       where: { status: "REVIEW" },
@@ -77,20 +98,52 @@ export default async function HomePage() {
         <h1 className="text-2xl font-semibold">Home</h1>
         <p className="mt-1 text-sm text-slate-600">
           {catalogFirst
-            ? "Start with a manufacturer catalog. That is how products get into the app. Invoices come after."
-            : `${productCount} product${productCount === 1 ? "" : "s"} from catalogs. Scan invoices to record sales.`}
+            ? "Add a manufacturer, then scan their catalog PDF. Products stay grouped by supplier."
+            : `${productCount} product${productCount === 1 ? "" : "s"} across ${manufacturers.length} manufacturer${manufacturers.length === 1 ? "" : "s"}.`}
         </p>
       </div>
 
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-slate-500">Manufacturers</h2>
+          <Link href="/manufacturers" className="text-sm text-slate-500 underline">
+            All
+          </Link>
+        </div>
+        {manufacturers.length === 0 ? (
+          <EmptyState
+            title="No manufacturers yet"
+            body="Add who you buy from. Each one gets their own product list and catalog PDFs."
+            actionHref="/manufacturers/new"
+            actionLabel="Add manufacturer"
+          />
+        ) : (
+          <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+            {manufacturers.map((m) => (
+              <li key={m.id}>
+                <Link
+                  href={`/manufacturers/${m.id}`}
+                  className="flex items-center justify-between px-4 py-3"
+                >
+                  <span className="text-sm font-medium">{m.name}</span>
+                  <span className="text-sm text-slate-600">
+                    {m._count.products} product{m._count.products === 1 ? "" : "s"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {catalogFirst ? (
         <Link
-          href="/catalogs/new"
+          href="/manufacturers/new"
           className="rounded-2xl bg-slate-900 px-4 py-4 text-white"
         >
-          <p className="text-base font-semibold">Upload catalog</p>
+          <p className="text-base font-semibold">Add manufacturer</p>
           <p className="mt-1 text-sm text-slate-300">
-            PDF from the manufacturer. The first one creates every product. There
-            is no add-product button.
+            Then scan their catalog PDF inside their page.
           </p>
         </Link>
       ) : (
@@ -105,12 +158,12 @@ export default async function HomePage() {
             </p>
           </Link>
           <Link
-            href="/catalogs/new"
+            href="/manufacturers"
             className="rounded-2xl border border-slate-200 bg-white px-4 py-4"
           >
-            <p className="text-base font-semibold">Upload another catalog</p>
+            <p className="text-base font-semibold">Manufacturers</p>
             <p className="mt-1 text-sm text-slate-600">
-              Adds new SKUs and appends buy prices. History is never deleted.
+              Scan another catalog PDF for a specific supplier.
             </p>
           </Link>
         </div>
@@ -123,8 +176,7 @@ export default async function HomePage() {
         >
           <p className="text-base font-semibold">Scan invoice</p>
           <p className="mt-1 text-sm text-slate-600">
-            Needs products from a catalog to match against. You can still scan;
-            unmatched lines stay as text and do not write sell history.
+            Needs products from a catalog to match against.
           </p>
         </Link>
       ) : null}
@@ -139,7 +191,10 @@ export default async function HomePage() {
                   href={`/catalogs/${c.id}`}
                   className="flex items-center justify-between px-4 py-3 text-sm"
                 >
-                  <span>Catalog draft</span>
+                  <span>
+                    {c.manufacturer.name}
+                    <span className="block text-xs text-slate-500">Catalog draft</span>
+                  </span>
                   <span className="text-xs text-slate-500">
                     {c.createdAt.toLocaleDateString()}
                   </span>
@@ -168,9 +223,9 @@ export default async function HomePage() {
         {extraCharges.length === 0 ? (
           <EmptyState
             title="None yet"
-            body="Extra charges come from a manufacturer catalog after you apply one. They can appear anywhere in the PDF, often on the last page."
-            actionHref={catalogFirst ? "/catalogs/new" : undefined}
-            actionLabel={catalogFirst ? "Upload a manufacturer catalog" : undefined}
+            body="Extra charges come from an applied manufacturer catalog."
+            actionHref={catalogFirst ? "/manufacturers/new" : undefined}
+            actionLabel={catalogFirst ? "Add manufacturer" : undefined}
           />
         ) : (
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
@@ -180,7 +235,12 @@ export default async function HomePage() {
                   href={`/catalogs/${charge.catalogImportId}`}
                   className="flex items-center justify-between px-4 py-3"
                 >
-                  <span className="text-sm font-medium">{charge.name}</span>
+                  <span>
+                    <span className="block text-sm font-medium">{charge.name}</span>
+                    <span className="block text-xs text-slate-500">
+                      {charge.catalogImport.manufacturer.name}
+                    </span>
+                  </span>
                   <span className="text-sm text-slate-700">
                     {formatCharge(charge.amount, charge.percent)}
                   </span>
@@ -203,11 +263,11 @@ export default async function HomePage() {
             title="No sales yet"
             body={
               catalogFirst
-                ? "Upload and apply a catalog first. Then scan a retailer invoice."
-                : "Scan a retailer invoice and confirm. Unmatched lines do not write sell history."
+                ? "Add a manufacturer and catalog first. Then scan a retailer invoice."
+                : "Scan a retailer invoice and confirm."
             }
-            actionHref={catalogFirst ? "/catalogs/new" : "/invoices/new"}
-            actionLabel={catalogFirst ? "Upload a manufacturer catalog" : "Scan invoice"}
+            actionHref={catalogFirst ? "/manufacturers/new" : "/invoices/new"}
+            actionLabel={catalogFirst ? "Add manufacturer" : "Scan invoice"}
           />
         ) : (
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">

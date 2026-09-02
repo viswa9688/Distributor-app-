@@ -64,6 +64,7 @@ export default async function ProductDetailPage({
       sku: true,
       unit: true,
       currentBuyPrice: true,
+      manufacturer: { select: { id: true, name: true } },
     },
   });
   if (!product) notFound();
@@ -81,7 +82,13 @@ export default async function ProductDetailPage({
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">{product.name}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {product.sku ? `${product.sku}` : "No SKU"}
+          <Link
+            href={`/manufacturers/${product.manufacturer.id}`}
+            className="underline"
+          >
+            {product.manufacturer.name}
+          </Link>
+          {product.sku ? ` · ${product.sku}` : " · No SKU"}
           {product.unit ? ` · ${product.unit}` : ""}
         </p>
         <p className="mt-2 text-base font-medium">

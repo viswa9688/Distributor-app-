@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const MAX_BYTES = 20 * 1024 * 1024;
 
-export function CatalogUpload() {
+export function CatalogUpload({ manufacturerId }: { manufacturerId: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -50,7 +50,7 @@ export function CatalogUpload() {
       const res = await fetch("/api/catalogs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filePath }),
+        body: JSON.stringify({ filePath, manufacturerId }),
       });
       const payload = (await res.json()) as {
         id?: string;

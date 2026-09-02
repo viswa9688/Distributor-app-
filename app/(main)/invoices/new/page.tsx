@@ -18,7 +18,7 @@ export default async function NewInvoicePage() {
         <EmptyState
           title="Catalog first"
           body="There are no products yet. Upload a manufacturer catalog so invoice lines can match. You can still scan; unmatched lines will not write sell history."
-          actionHref="/catalogs/new"
+          actionHref="/manufacturers/new"
           actionLabel="Upload a manufacturer catalog"
         />
       ) : null}

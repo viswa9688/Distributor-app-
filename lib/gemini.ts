@@ -14,6 +14,7 @@ export type ExtractedExtraCharge = {
 };
 
 export type ExtractedCatalog = {
+  manufacturerName: string | null;
   priceListPages: number[];
   extraCharges: ExtractedExtraCharge[];
   products: ExtractedCatalogProduct[];
@@ -25,6 +26,7 @@ Ignore marketing copy, photos, and anything that is not a sellable SKU with a pr
 Find the price-list pages yourself. Extra charges (freight, GST, handling, etc.) are usually on the last page.
 
 Return:
+- manufacturerName: company or brand name on the catalog header if visible, else empty string
 - priceListPages: 1-based page numbers that contain the price list
 - products: every product on those pages with name, optional sku, optional unit, and unit price as a number
 - extraCharges: named extra charges with either a money amount or a percent (not both required)
@@ -34,6 +36,7 @@ Do not invent products. If a row has no price, skip it.`;
 const catalogSchema: Schema = {
   type: SchemaType.OBJECT,
   properties: {
+    manufacturerName: { type: SchemaType.STRING },
     priceListPages: {
       type: SchemaType.ARRAY,
       items: { type: SchemaType.INTEGER },
@@ -64,7 +67,7 @@ const catalogSchema: Schema = {
       },
     },
   },
-  required: ["priceListPages", "extraCharges", "products"],
+  required: ["manufacturerName", "priceListPages", "extraCharges", "products"],
 };
 
 export async function extractCatalogFromPdf(
@@ -95,8 +98,10 @@ export async function extractCatalogFromPdf(
   ]);
 
   const text = result.response.text();
-  const parsed = JSON.parse(text) as ExtractedCatalog;
+  const parsed = JSON.parse(text) as ExtractedCatalog & { manufacturerName?: string };
+  const manufacturerName = String(parsed.manufacturerName ?? "").trim();
   return {
+    manufacturerName: manufacturerName.length > 0 ? manufacturerName : null,
     priceListPages: Array.isArray(parsed.priceListPages)
       ? parsed.priceListPages
       : [],

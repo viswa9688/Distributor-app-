@@ -44,8 +44,19 @@ enum CatalogLineAction {
   UNCERTAIN
 }
 
+model Manufacturer {
+  id        String          @id @default(cuid())
+  name      String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  products  Product[]
+  catalogs  CatalogImport[]
+}
+
 model Product {
   id              String         @id @default(cuid())
+  manufacturerId  String
+  manufacturer    Manufacturer   @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
   name            String
   sku             String?
   unit            String?
@@ -59,6 +70,7 @@ model Product {
   invoiceLines    InvoiceLine[]
   catalogLines    CatalogLine[]
 
+  @@index([manufacturerId])
   @@index([normalizedName])
   @@index([sku])
 }
@@ -107,15 +119,19 @@ model InvoiceLine {
 }
 
 model CatalogImport {
-  id           String            @id @default(cuid())
-  filePath     String
-  status       CatalogStatus     @default(PROCESSING)
-  error        String?
-  createdBy    String
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  lines        CatalogLine[]
-  extraCharges ExtraCharge[]
+  id             String            @id @default(cuid())
+  manufacturerId String
+  manufacturer   Manufacturer      @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  filePath       String
+  status         CatalogStatus     @default(PROCESSING)
+  error          String?
+  createdBy      String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  lines          CatalogLine[]
+  extraCharges   ExtraCharge[]
+
+  @@index([manufacturerId])
 }
 
 model CatalogLine {

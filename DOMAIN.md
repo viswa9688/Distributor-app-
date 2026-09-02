@@ -11,68 +11,67 @@ A distributor sits between a manufacturer and a retailer: buys from one, sells t
 
 Three jobs:
 
-1. **Manufacturer catalogs (PDF)** — long multi-page docs. Somewhere in them is a price list; the last page usually has extra charges. The app finds those pages, extracts prices, and updates the product database.
+1. **Manufacturer catalogs (PDF)** — long multi-page docs. Somewhere in them is a price list; extra charges can appear anywhere, often on the last page. The app finds those pages, extracts prices, and updates the product database **for that manufacturer**.
 2. **Retailer invoices** — handwritten or printed. Point the phone camera (or pick from gallery). Extract line items and prices; save as a sale.
 3. **Price history** — for each product, a running record of buy prices (from the manufacturer) and sell prices (to the retailer). The UI shows the last 5 of each. The database keeps the full series.
 
 ## Product source of truth
 
-The catalog pipeline is the **only** way `Product` rows are created in v1.
+The catalog pipeline is the **only** way `Product` rows are created.
 
-- Before the first catalog is applied, the product table is empty. That is correct, not a bug.
-- First catalog: matcher vs empty table → every row `CREATE` → insert products + first `BUY` history each. Review copy is “N new products”, not a matching failure.
-- Later catalogs: mix of `CREATE` (new manufacturer SKUs) and `UPDATE` (existing products). Apply appends another `BUY` observation even if the price is unchanged. User can `SKIP` a row.
+- Every product belongs to one **Manufacturer**. Same SKU from two suppliers = two product rows.
+- Catalog upload is always scoped to a manufacturer (`/manufacturers/[id]/catalogs/new`). Matcher only sees that manufacturer’s products.
+- Before the first catalog for a manufacturer, that manufacturer’s list is empty. That is correct.
+- First catalog for a manufacturer: matcher vs empty scoped list → every row `CREATE`.
+- Later catalogs for the same manufacturer: mix of `CREATE` / `UPDATE` / `UNCERTAIN`. Apply **appends** BUY history; never deletes history.
 - No seed script. No “add product” admin form.
-- Invoices do **not** create products. Unmatched invoice lines stay raw text; no `SELL` history until a `productId` is set.
+- Invoices do **not** create products. Invoice matching runs against **all** products (all manufacturers). Unmatched lines stay raw text; no `SELL` history until a `productId` is set.
 
-## Locked v1 decisions
+## Locked decisions
 
-- One distributor org; staff share the same products/invoices.
+- One distributor org; staff share the same manufacturers, products, and invoices.
 - Next.js App Router (UI + Route Handlers). No separate backend.
 - PostgreSQL via Supabase + Prisma. Supabase Auth. Supabase Storage (`invoices`, `catalogs`).
-- Gemini `gemini-3.6-flash` for OCR (`gemini-2.0-flash` was retired by Google with a 404). Never auto-commit OCR; review screen first.
-- PWA via Serwist (not `next-pwa`).
-- Host: Vercel.
-- Retailer is a **string** on the invoice, not a table (known debt).
-- Price history is **append-only**. “Last 5” is `ORDER BY recordedAt DESC LIMIT 5` on read. Never delete history on apply.
-- Catalog OCR in v1 is a **sync Route Handler**. Large PDFs will hit the Vercel timeout. `FAILED` + Retry re-runs the same handler; that is a retry button, not a job queue.
+- Gemini `gemini-3.6-flash` for OCR. Never auto-commit OCR; review screen first.
+- PWA via Serwist. Host: Vercel.
+- **Manufacturer** is a table (name). **Retailer** is still a string on the invoice (known debt).
+- Price history is **append-only**. “Last 5” is `ORDER BY recordedAt DESC LIMIT 5` on read.
+- Catalog OCR is a **sync Route Handler**. `FAILED` + Retry re-runs the same handler; not a job queue.
 
 ## Matching rules (invoices + catalogs)
 
-Same module for both. Normalize names, canonicalize units, extract size. Size mismatch is a hard reject (`1kg` must not match `500g`). Then SKU exact → normalized exact → Dice/containment score.
+Same module. Size mismatch is a hard reject. SKU exact → normalized exact → Dice/containment.
 
-Confidence: `HIGH` pre-selects (still editable), `MEDIUM` shows top 3 and does not pre-select, `LOW`/`NONE` requires a picker. Empty product list → catalog assigns `CREATE`, invoice assigns `NONE`.
+Catalog matcher scope: **current manufacturer’s products only**. Invoice matcher scope: **all products**.
 
-## Build sequence (6 steps)
+## Build sequence (6 steps + post-v1)
 
-Confirm with the user after each step that the app behaves as intended. Do not start the next step until they say so.
+v1 steps 1–6 are complete. Post-v1:
 
-1. **Scaffold** — Next.js, Prisma schema, Supabase auth/middleware, PWA shell, empty screens, git in this folder.
-2. **Product matcher** — pure module + tests (including empty catalog → all CREATE).
-3. **Catalog OCR** — PDF → extract → review → apply. This fills `Product`.
-4. **Products UI** — list/detail, last-5 via LIMIT, empty state until step 3.
-5. **Invoice OCR** — camera → extract → match → confirm sale + SELL history.
-6. **Dashboard polish + verify** — catalog-first empty state, extra charges, end-to-end check.
+7. **Manufacturers** — table + UI; scoped catalog PDF; Home breakdown by manufacturer.
 
 ## Current phase
 
-**Step 6 — Dashboard polish** is implemented. This is the last v1 build step. Waiting for an end-to-end confirm.
+**Manufacturers (post-v1)** is implemented. Waiting for user confirmation.
 
 ## What is built
 
-v1 complete:
+v1 plus:
 
-- Catalog-first Home: empty product table pushes **Upload catalog**; after apply, Home shows product count, extra charges from applied catalogs, recent **confirmed** sales, and unfinished catalog/invoice reviews.
-- Scan and Sales empty states also point at a catalog when there are no products.
-- Catalog OCR → products + last-5 buy. Invoice OCR → confirm sale + last-5 sell (`LIMIT 5` reads). Invoices never create products.
+- `Manufacturer` model; `Product.manufacturerId` and `CatalogImport.manufacturerId` required.
+- **Makers** tab: list, add by name, or add from catalog PDF (Gemini suggests name, user confirms).
+- Manufacturer detail: product list, **Scan catalog PDF**, extra charges from applied catalogs.
+- Home: manufacturer summary with product counts; extra charges show manufacturer name.
+- Products list: manufacturer column; invoice scan still matches globally.
+- Legacy `/catalogs/new` redirects to `/manufacturers`. Existing data backfilled to manufacturer `Imported catalog` if migration ran.
 
 ## How to confirm this phase
 
-Walk the full loop once:
+1. Run `npx prisma migrate deploy` (or `npm run db:migrate`) if the DB does not have `Manufacturer` yet.
+2. Add manufacturer “ABC” → empty product list for ABC only.
+3. Scan PDF inside ABC → Apply → products only under ABC.
+4. Add “XYZ”, scan another PDF → separate rows even if names match ABC.
+5. Home shows both with counts; Products list shows manufacturer column.
+6. Invoice scan still matches products from any manufacturer.
 
-1. Home with no products: catalog is the main action; extra charges and sales empty.
-2. Upload catalog → review “N new products” → Apply → Products list fills → product detail last-5 **buy**.
-3. Home now shows extra charges if the PDF had them, and Scan is the main action.
-4. Scan invoice → confirm → Home **Recent sales** and product last-5 **sell**.
-
-If that looks right, v1 is done. Next work is outside this six-step sequence.
+If that looks right, say so. Next work is outside this sequence unless you request it.

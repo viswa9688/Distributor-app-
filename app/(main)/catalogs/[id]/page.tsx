@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CatalogReview } from "@/components/CatalogReview";
 import { EmptyState } from "@/components/EmptyState";
 import { prisma } from "@/lib/prisma";
@@ -11,6 +12,7 @@ export default async function CatalogDetailPage({
   const catalog = await prisma.catalogImport.findUnique({
     where: { id },
     include: {
+      manufacturer: { select: { id: true, name: true } },
       lines: { orderBy: { rawName: "asc" } },
       extraCharges: true,
     },
@@ -23,8 +25,8 @@ export default async function CatalogDetailPage({
         <EmptyState
           title="Catalog not found"
           body="That import does not exist."
-          actionHref="/catalogs/new"
-          actionLabel="Upload a catalog"
+          actionHref="/manufacturers"
+          actionLabel="Manufacturers"
         />
       </main>
     );
@@ -32,7 +34,15 @@ export default async function CatalogDetailPage({
 
   return (
     <main className="flex flex-col gap-4 pb-6">
-      <h1 className="text-2xl font-semibold">Catalog review</h1>
+      <div>
+        <Link
+          href={`/manufacturers/${catalog.manufacturer.id}`}
+          className="text-sm text-slate-600 underline"
+        >
+          {catalog.manufacturer.name}
+        </Link>
+        <h1 className="mt-2 text-2xl font-semibold">Catalog review</h1>
+      </div>
       <CatalogReview
         catalogId={catalog.id}
         initialStatus={catalog.status}

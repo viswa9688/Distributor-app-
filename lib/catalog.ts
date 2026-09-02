@@ -40,6 +40,7 @@ export async function processCatalogImport(importId: string) {
     }
 
     const products = await prisma.product.findMany({
+      where: { manufacturerId: catalog.manufacturerId },
       select: {
         id: true,
         name: true,
@@ -143,6 +144,7 @@ export async function applyCatalogImport(importId: string) {
           data: creates.map((line) => {
             const parsed = parseIdentity(line.rawName, line.sku);
             return {
+              manufacturerId: catalog.manufacturerId,
               name: line.rawName,
               sku: line.sku,
               unit: line.unit,
