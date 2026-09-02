@@ -19,7 +19,8 @@ export default async function ProductsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Products</h1>
         <p className="mt-1 text-sm text-slate-600">
-          All products across manufacturers. Invoice scan matches within the chosen manufacturer.
+          All products across manufacturers.{" "}
+          <Link href="/sell" className="underline">Build a sales quote in Sell</Link>.
         </p>
       </div>
       {products.length === 0 ? (

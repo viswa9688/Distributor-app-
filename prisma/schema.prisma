@@ -72,6 +72,7 @@ model Product {
   invoiceLines    InvoiceLine[]
   catalogLines    CatalogLine[]
   extraCharges    ProductExtraCharge[]
+  salesQuoteLines SalesQuoteLine[]
 
   @@index([manufacturerId])
   @@index([normalizedName])
@@ -183,4 +184,47 @@ model ProductExtraCharge {
 
   @@index([productId])
   @@index([sourceCatalogImportId])
+}
+
+model Client {
+  id        String       @id @default(cuid())
+  name      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  quotes    SalesQuote[]
+}
+
+model SalesQuote {
+  id         String           @id @default(cuid())
+  clientId   String
+  client     Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientName String
+  createdBy  String
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  lines      SalesQuoteLine[]
+
+  @@index([clientId, createdAt(sort: Desc)])
+}
+
+model SalesQuoteLine {
+  id               String     @id @default(cuid())
+  salesQuoteId     String
+  salesQuote       SalesQuote @relation(fields: [salesQuoteId], references: [id], onDelete: Cascade)
+  productId        String?
+  product          Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName      String
+  manufacturerName String
+  sku              String?
+  unit             String?
+  quantity         Decimal    @default(1) @db.Decimal(12, 3)
+  buyPrice         Decimal    @db.Decimal(12, 2)
+  extraChargesTotal Decimal   @db.Decimal(12, 2)
+  baseCost         Decimal    @db.Decimal(12, 2)
+  marginPercent    Decimal    @db.Decimal(8, 4)
+  unitQuotePrice   Decimal    @db.Decimal(12, 2)
+  lineTotal        Decimal    @db.Decimal(12, 2)
+
+  @@index([salesQuoteId])
+  @@index([productId])
 }

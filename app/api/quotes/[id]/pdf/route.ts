@@ -1,0 +1,107 @@
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { prisma } from "@/lib/prisma";
+import { sumQuoteLines } from "@/lib/quote";
+import { requireUser } from "@/lib/require-user";
+import { NextResponse } from "next/server";
+
+function formatMoney(n: number) {
+  return n.toFixed(2);
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { user, response } = await requireUser();
+  if (!user) return response;
+
+  const { id } = await params;
+  const quote = await prisma.salesQuote.findUnique({
+    where: { id },
+    include: { lines: { orderBy: { productName: "asc" } } },
+  });
+
+  if (!quote) {
+    return NextResponse.json({ error: "Quote not found." }, { status: 404 });
+  }
+
+  const lines = quote.lines.map((l) => ({
+    productName: l.productName,
+    manufacturerName: l.manufacturerName,
+    sku: l.sku,
+    unit: l.unit,
+    quantity: Number(l.quantity),
+    baseCost: Number(l.baseCost),
+    marginPercent: Number(l.marginPercent),
+    unitQuotePrice: Number(l.unitQuotePrice),
+    lineTotal: Number(l.lineTotal),
+  }));
+  const grandTotal = sumQuoteLines(lines);
+
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pageWidth = 595;
+  const pageHeight = 842;
+  let page = pdf.addPage([pageWidth, pageHeight]);
+  let y = pageHeight - 50;
+
+  const draw = (text: string, x: number, size = 10, bold = false) => {
+    page.drawText(text, {
+      x,
+      y,
+      size,
+      font: bold ? fontBold : font,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+  };
+
+  draw("Sales quote", 50, 18, true);
+  y -= 28;
+  draw(`Client: ${quote.clientName}`, 50, 11);
+  y -= 16;
+  draw(`Date: ${quote.createdAt.toLocaleDateString()}`, 50, 10);
+  y -= 24;
+
+  draw("Product", 50, 9, true);
+  draw("Qty", 280, 9, true);
+  draw("Base", 320, 9, true);
+  draw("Margin", 380, 9, true);
+  draw("Unit", 440, 9, true);
+  draw("Total", 500, 9, true);
+  y -= 14;
+
+  for (const line of lines) {
+    if (y < 80) {
+      page = pdf.addPage([pageWidth, pageHeight]);
+      y = pageHeight - 50;
+    }
+    const label = line.sku
+      ? `${line.productName} (${line.sku})`
+      : line.productName;
+    const short =
+      label.length > 36 ? `${label.slice(0, 35)}…` : label;
+    draw(short, 50, 9);
+    draw(String(line.quantity), 280, 9);
+    draw(formatMoney(line.baseCost), 320, 9);
+    draw(`${line.marginPercent}%`, 380, 9);
+    draw(formatMoney(line.unitQuotePrice), 440, 9);
+    draw(formatMoney(line.lineTotal), 500, 9);
+    y -= 14;
+    draw(line.manufacturerName, 50, 8);
+    y -= 12;
+  }
+
+  y -= 8;
+  draw(`Grand total: ${formatMoney(grandTotal)}`, 50, 12, true);
+
+  const bytes = await pdf.save();
+  const filename = `quote-${quote.clientName.replace(/\s+/g, "-")}-${quote.id.slice(0, 8)}.pdf`;
+
+  return new NextResponse(Buffer.from(bytes), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
+}
