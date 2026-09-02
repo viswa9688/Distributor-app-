@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type ProductRow = {
   id: string;
@@ -47,6 +47,19 @@ export function ManufacturerProducts({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft());
   const [pending, setPending] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filteredProducts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => {
+      const haystack = [p.name, p.sku, p.unit, String(p.currentBuyPrice)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [products, query]);
 
   async function createProduct() {
     const price = Number(addDraft.currentBuyPrice);
@@ -224,13 +237,25 @@ export function ManufacturerProducts({
         </div>
       ) : null}
 
+      {products.length > 0 ? (
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search products…"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+        />
+      ) : null}
+
       {products.length === 0 && !adding ? (
         <p className="text-sm text-slate-500">
           No products yet. Scan a catalog PDF or add one manually.
         </p>
+      ) : filteredProducts.length === 0 ? (
+        <p className="text-sm text-slate-500">No products match “{query.trim()}”.</p>
       ) : (
         <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-          {products.map((p) => (
+          {filteredProducts.map((p) => (
             <li key={p.id} className="px-3 py-3">
               {editingId === p.id ? (
                 <div className="space-y-2">
