@@ -300,10 +300,7 @@ export function SellQuoteBuilder({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium">{line.name}</p>
-                    <p className="text-xs text-slate-500">
-                      {line.manufacturerName} · unit cost{" "}
-                      {line.unitCost.toFixed(2)}
-                    </p>
+                    <p className="text-xs text-slate-500">{line.manufacturerName}</p>
                   </div>
                   <button
                     type="button"
@@ -334,7 +331,7 @@ export function SellQuoteBuilder({
                     />
                   </label>
                   <div className="text-xs text-slate-500">
-                    Total (all units)
+                    Total
                     <p className="mt-1 text-sm font-medium text-slate-900">
                       {line.lineTotal.toFixed(2)}
                     </p>

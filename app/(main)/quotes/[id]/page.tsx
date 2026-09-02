@@ -30,7 +30,6 @@ export default async function QuoteDetailPage({
     sku: l.sku,
     unit: l.unit,
     quantity: Number(l.quantity),
-    baseCost: Number(l.baseCost),
     lineTotal: Number(l.lineTotal),
   }));
   const grandTotal = sumQuoteLines(lines);
@@ -70,9 +69,8 @@ export default async function QuoteDetailPage({
               {line.sku ? ` · ${line.sku}` : ""}
               {line.unit ? ` · ${line.unit}` : ""}
             </p>
-            <p className="mt-1 text-xs text-slate-600">
-              Qty {line.quantity} · unit cost {formatMoney(line.baseCost)} ·
-              total {formatMoney(line.lineTotal)}
+            <p className="mt-2 text-sm font-medium text-slate-900">
+              Total {formatMoney(line.lineTotal)}
             </p>
           </li>
         ))}

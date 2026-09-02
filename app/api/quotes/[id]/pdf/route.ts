@@ -32,7 +32,6 @@ export async function GET(
     sku: l.sku,
     unit: l.unit,
     quantity: Number(l.quantity),
-    baseCost: Number(l.baseCost),
     lineTotal: Number(l.lineTotal),
   }));
   const grandTotal = sumQuoteLines(lines);
@@ -65,8 +64,7 @@ export async function GET(
   y -= 24;
 
   draw("Product", 50, 9, true);
-  draw("Qty", 340, 9, true);
-  draw("Unit cost", 400, 9, true);
+  draw("Qty", 400, 9, true);
   draw("Total", 500, 9, true);
   y -= 14;
 
@@ -79,10 +77,9 @@ export async function GET(
       ? `${line.productName} (${line.sku})`
       : line.productName;
     const short =
-      label.length > 40 ? `${label.slice(0, 39)}…` : label;
+      label.length > 48 ? `${label.slice(0, 47)}…` : label;
     draw(short, 50, 9);
-    draw(String(line.quantity), 340, 9);
-    draw(formatMoney(line.baseCost), 400, 9);
+    draw(String(line.quantity), 400, 9);
     draw(formatMoney(line.lineTotal), 500, 9);
     y -= 14;
     draw(line.manufacturerName, 50, 8);

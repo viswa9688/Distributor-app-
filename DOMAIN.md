@@ -30,7 +30,7 @@ The catalog pipeline is the primary way `Product` rows are created (plus manual 
 - **Clients** bottom-nav tab (`/clients`) lists all clients; tap one → `/clients/[id]` shows **all quotes for that client** (default filter: all time; optional 7d / 30d / 90d).
 - Distinct from invoice `retailerName` (string on scanned retailer invoices). Linking Client ↔ invoice retailer is future work.
 - Each saved **SalesQuote** stores `createdAt` (UTC in DB). UI and PDF show **date created** and **time created** separately (locale-aware).
-- **Sales quote** line = **unit total cost** (buy + extra charges) and **line total** (unit cost × quantity). No margin % in v1 quotes.
+- **Sales quote** (client-facing): each line shows **total charges** only (line total). No unit cost, base cost, or margin on quote detail or PDF. Distributor sees product cost only while building in Sell.
 - Quotes are **snapshots** (client name, product fields, costs frozen at save time).
 - PDF export only — quotes do **not** append SELL price history (that still comes from confirmed retailer invoices).
 
