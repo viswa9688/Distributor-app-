@@ -6,6 +6,7 @@ import {
   type ProductCandidate,
 } from "@/lib/product-match";
 import { buildProductFields } from "@/lib/product";
+import { syncManufacturerProductExtraCharges } from "@/lib/extra-charges";
 import { createClient } from "@/lib/supabase/server";
 import type { CatalogLineAction } from "@prisma/client";
 
@@ -179,6 +180,13 @@ export async function applyCatalogImport(importId: string) {
           })),
         });
       }
+
+      await syncManufacturerProductExtraCharges(
+        tx,
+        catalog.manufacturerId,
+        catalog.id,
+        catalog.extraCharges,
+      );
 
       await tx.catalogImport.update({
         where: { id: importId },

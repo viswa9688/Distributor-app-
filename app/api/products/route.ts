@@ -1,5 +1,6 @@
 import { prisma, prismaTx } from "@/lib/prisma";
 import { buildProductFields, parseBuyPrice } from "@/lib/product";
+import { copyProductExtraChargesFromManufacturer } from "@/lib/extra-charges";
 import { requireUser } from "@/lib/require-user";
 import { NextResponse } from "next/server";
 
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
         sourceId: created.id,
       },
     });
+    await copyProductExtraChargesFromManufacturer(tx, manufacturerId, created.id);
     return created;
   });
 

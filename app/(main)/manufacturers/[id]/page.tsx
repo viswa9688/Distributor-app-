@@ -31,28 +31,19 @@ export default async function ManufacturerDetailPage({
           currentBuyPrice: true,
         },
       },
-      catalogs: {
-        where: { status: "APPLIED" },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: {
-          id: true,
-          extraCharges: {
-            select: { id: true, name: true, amount: true, percent: true },
-          },
-        },
-      },
     },
   });
 
   if (!manufacturer) notFound();
 
-  const extraCharges = manufacturer.catalogs.flatMap((c) =>
-    c.extraCharges.map((charge) => ({
-      ...charge,
-      catalogId: c.id,
-    })),
-  );
+  const sampleProductId = manufacturer.products[0]?.id;
+  const extraCharges = sampleProductId
+    ? await prisma.productExtraCharge.findMany({
+        where: { productId: sampleProductId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, amount: true, percent: true },
+      })
+    : [];
 
   return (
     <main className="flex flex-col gap-6 pb-6">
@@ -91,18 +82,20 @@ export default async function ManufacturerDetailPage({
       {extraCharges.length > 0 ? (
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-medium text-slate-500">Extra charges</h2>
+          <p className="text-xs text-slate-500">
+            Stored on each product; shown here once per manufacturer. Updated when
+            you apply a catalog.
+          </p>
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
             {extraCharges.map((charge) => (
-              <li key={charge.id}>
-                <Link
-                  href={`/catalogs/${charge.catalogId}`}
-                  className="flex items-center justify-between px-4 py-3"
-                >
-                  <span className="text-sm font-medium">{charge.name}</span>
-                  <span className="text-sm text-slate-700">
-                    {formatCharge(charge.amount, charge.percent)}
-                  </span>
-                </Link>
+              <li
+                key={charge.id}
+                className="flex items-center justify-between px-4 py-3"
+              >
+                <span className="text-sm font-medium">{charge.name}</span>
+                <span className="text-sm text-slate-700">
+                  {formatCharge(charge.amount, charge.percent)}
+                </span>
               </li>
             ))}
           </ul>

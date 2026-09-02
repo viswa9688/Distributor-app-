@@ -44,17 +44,15 @@ export default async function HomePage() {
       },
     }),
     prisma.product.count(),
-    prisma.extraCharge.findMany({
-      where: { catalogImport: { status: "APPLIED" } },
-      orderBy: { catalogImport: { createdAt: "desc" } },
-      take: 8,
+    prisma.productExtraCharge.findMany({
+      orderBy: { id: "desc" },
+      take: 40,
       select: {
         id: true,
         name: true,
         amount: true,
         percent: true,
-        catalogImportId: true,
-        catalogImport: {
+        product: {
           select: {
             manufacturer: { select: { id: true, name: true } },
           },
@@ -89,6 +87,16 @@ export default async function HomePage() {
       select: { id: true, retailerName: true },
     }),
   ]);
+
+  const latestExtraCharges: typeof extraCharges = [];
+  const seenChargeKeys = new Set<string>();
+  for (const charge of extraCharges) {
+    const key = `${charge.product.manufacturer.id}:${charge.name}`;
+    if (seenChargeKeys.has(key)) continue;
+    seenChargeKeys.add(key);
+    latestExtraCharges.push(charge);
+    if (latestExtraCharges.length >= 8) break;
+  }
 
   const noManufacturers = manufacturers.length === 0;
   const noProducts = productCount === 0;
@@ -221,25 +229,25 @@ export default async function HomePage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-slate-500">Latest extra charges</h2>
-        {extraCharges.length === 0 ? (
+        {latestExtraCharges.length === 0 ? (
           <EmptyState
             title="None yet"
-            body="Extra charges come from an applied manufacturer catalog."
+            body="Extra charges come from an applied manufacturer catalog and are stored on each product."
             actionHref={noManufacturers ? "/manufacturers/new" : undefined}
             actionLabel={noManufacturers ? "Add manufacturer" : undefined}
           />
         ) : (
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-            {extraCharges.map((charge) => (
+            {latestExtraCharges.map((charge) => (
               <li key={charge.id}>
                 <Link
-                  href={`/catalogs/${charge.catalogImportId}`}
+                  href={`/manufacturers/${charge.product.manufacturer.id}`}
                   className="flex items-center justify-between px-4 py-3"
                 >
                   <span>
                     <span className="block text-sm font-medium">{charge.name}</span>
                     <span className="block text-xs text-slate-500">
-                      {charge.catalogImport.manufacturer.name}
+                      {charge.product.manufacturer.name}
                     </span>
                   </span>
                   <span className="text-sm text-slate-700">

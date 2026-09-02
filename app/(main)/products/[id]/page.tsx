@@ -57,6 +57,50 @@ function HistoryList({
   );
 }
 
+function formatCharge(
+  amount: { toString(): string } | null,
+  percent: { toString(): string } | null,
+) {
+  if (amount !== null) return Number(amount).toFixed(2);
+  if (percent !== null) return `${Number(percent)}%`;
+  return "—";
+}
+
+function ExtraChargesList({
+  charges,
+}: {
+  charges: {
+    id: string;
+    name: string;
+    amount: { toString(): string } | null;
+    percent: { toString(): string } | null;
+  }[];
+}) {
+  if (charges.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-sm font-medium text-slate-500">Extra charges</h2>
+      <p className="text-xs text-slate-500">
+        From the latest applied catalog for this manufacturer. Same on every
+        product until a new catalog is applied.
+      </p>
+      <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+        {charges.map((charge) => (
+          <li
+            key={charge.id}
+            className="flex items-center justify-between px-4 py-3"
+          >
+            <span className="text-sm font-medium">{charge.name}</span>
+            <span className="text-sm text-slate-700">
+              {formatCharge(charge.amount, charge.percent)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default async function ProductDetailPage({
   params,
 }: {
@@ -72,6 +116,10 @@ export default async function ProductDetailPage({
       unit: true,
       currentBuyPrice: true,
       manufacturer: { select: { id: true, name: true } },
+      extraCharges: {
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, amount: true, percent: true },
+      },
     },
   });
   if (!product) notFound();
@@ -92,6 +140,8 @@ export default async function ProductDetailPage({
         initialUnit={product.unit}
         initialBuyPrice={Number(product.currentBuyPrice)}
       />
+
+      <ExtraChargesList charges={product.extraCharges} />
 
       <HistoryList
         title="Last 5 buy prices"
