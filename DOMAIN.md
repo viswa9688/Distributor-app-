@@ -27,7 +27,9 @@ The catalog pipeline is the primary way `Product` rows are created (plus manual 
 ## Clients and quotes
 
 - **Client** table — retailers you send **outbound sales quotes** to (many clients; each has many quotes).
+- **Clients** bottom-nav tab (`/clients`) lists all clients; tap one → `/clients/[id]` shows **all quotes for that client** (default filter: all time; optional 7d / 30d / 90d).
 - Distinct from invoice `retailerName` (string on scanned retailer invoices). Linking Client ↔ invoice retailer is future work.
+- Each saved **SalesQuote** stores `createdAt` (UTC in DB). UI and PDF show **date created** and **time created** separately (locale-aware).
 - **Sales quote** cost per unit = `currentBuyPrice` + product extra charges (flat amounts + % of buy price, not compounded).
 - **Margin %** is per line; quote price = base cost × (1 + margin/100).
 - Quotes are **snapshots** (client name, product fields, costs frozen at save time).
@@ -44,6 +46,7 @@ The catalog pipeline is the primary way `Product` rows are created (plus manual 
 - Price history is **append-only**. “Last 5” is `ORDER BY recordedAt DESC LIMIT 5` on read.
 - Catalog OCR is a **sync Route Handler**. `FAILED` + Retry re-runs the same handler; not a job queue.
 - Product **extra charges** are stored per product (synced from applied catalog); same values across a manufacturer today.
+- Bottom nav: Home | Makers | Sell | **Clients** | Scan | Products.
 
 ## Matching rules (invoices + catalogs)
 
@@ -60,28 +63,28 @@ v1 steps 1–6 complete. Post-v1:
 9. **Product CRUD + catalog edit** — manual products; editable catalog review lines.
 10. **Product-level extra charges** — synced from catalog apply.
 11. **Sell + clients + quotes** — Sell tab, clients, saved quotes, time filters, PDF export.
+12. **Clients nav + quote timestamps** — dedicated Clients tab; date/time on every quote list, detail, and PDF.
 
 ## Current phase
 
-**Sell (sales quotes)** is implemented. Waiting for user confirmation.
+**Clients nav + quote timestamps** is implemented. Waiting for user confirmation.
 
-**Next step:** **Generate invoices** from saved sales quotes (turn a quote into a formal invoice document for the client — not yet built).
+**Next step:** **Generate invoices** from saved sales quotes (formal invoice document for the client — not yet built).
 
 ## What is built
 
-- **Sell** tab: all products, search, manufacturer filter, client picker, per-line margin %, grand total.
-- **Clients** (`/clients`): add client; each client has many quotes (`/clients/[id]` with time filter).
-- **All quotes** (`/quotes`): filter by time (7d / 30d / 90d / all).
-- Quote detail + **Download PDF** (`pdf-lib`).
-- APIs: `POST/GET /api/clients`, `GET /api/sell/products`, `POST/GET /api/quotes`, `GET /api/quotes/[id]/pdf`.
+- **Sell** tab: product browse, client picker, margins, save quote.
+- **Clients** tab: list clients → client detail with **all quotes** for that client; date + time on each row.
+- Quote detail: **Date created** / **Time created**; PDF includes both.
+- `/quotes`: all quotes across clients (optional; also reachable from Clients flow).
+- APIs unchanged: `POST/GET /api/clients`, `GET /api/sell/products`, `POST/GET /api/quotes`, `GET /api/quotes/[id]/pdf`.
 
 ## How to confirm this phase
 
-1. Run `npx prisma migrate deploy` through `20260902200000_clients_and_sales_quotes`.
-2. **Clients** → add “Shop ABC”.
-3. **Sell** → pick Shop ABC → add products → set margins → **Save sales quote**.
-4. **Clients → Shop ABC** → see quote; filter **Last 7 days**.
-5. **Download PDF** — client name, lines, margins, grand total.
-6. Confirm quote does **not** change SELL history until a retailer invoice is confirmed separately.
+1. Bottom nav shows **Clients** as its own tab (not under Sell).
+2. **Clients** → pick a client → see all their quotes (default **All time**).
+3. Each quote row shows **date** and **time** created separately.
+4. Open a quote → detail shows date and time; PDF matches.
+5. **Sell** → save a new quote → appears on that client’s page with today’s date and time.
 
 If that looks right, say so. **Next:** generate invoices from quotes.

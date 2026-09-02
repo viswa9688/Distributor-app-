@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { formatQuoteDate, formatQuoteTime } from "@/lib/format-datetime";
 import { prisma } from "@/lib/prisma";
 import { sumQuoteLines } from "@/lib/quote";
 import { requireUser } from "@/lib/require-user";
@@ -60,7 +61,9 @@ export async function GET(
   y -= 28;
   draw(`Client: ${quote.clientName}`, 50, 11);
   y -= 16;
-  draw(`Date: ${quote.createdAt.toLocaleDateString()}`, 50, 10);
+  draw(`Date created: ${formatQuoteDate(quote.createdAt)}`, 50, 10);
+  y -= 14;
+  draw(`Time created: ${formatQuoteTime(quote.createdAt)}`, 50, 10);
   y -= 24;
 
   draw("Product", 50, 9, true);

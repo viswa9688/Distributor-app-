@@ -18,7 +18,8 @@ export default async function ClientsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Clients</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Retailers you quote to. Each client can have many saved sales quotes.
+          Retailers you quote to. Open a client to see all their sales quotes
+          with date and time created.
         </p>
       </div>
       <AddClientForm />

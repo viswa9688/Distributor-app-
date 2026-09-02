@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { formatQuoteDate, formatQuoteTime } from "@/lib/format-datetime";
 
 type QuoteRow = {
   id: string;
@@ -22,12 +23,14 @@ export function QuoteList({
   clientId,
   title,
   newQuoteHref,
+  defaultPreset = "30d",
 }: {
   clientId?: string;
   title: string;
   newQuoteHref?: string;
+  defaultPreset?: string;
 }) {
-  const [preset, setPreset] = useState<string>("30d");
+  const [preset, setPreset] = useState(defaultPreset);
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +62,9 @@ export function QuoteList({
         className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
       >
         {PRESETS.map((p) => (
-          <option key={p.value} value={p.value}>{p.label}</option>
+          <option key={p.value} value={p.value}>
+            {p.label}
+          </option>
         ))}
       </select>
       {loading ? (
@@ -72,17 +77,22 @@ export function QuoteList({
             <li key={q.id}>
               <Link
                 href={`/quotes/${q.id}`}
-                className="flex items-center justify-between px-4 py-3"
+                className="flex items-center justify-between gap-3 px-4 py-3"
               >
                 <span>
                   {!clientId ? (
                     <span className="block text-sm font-medium">{q.clientName}</span>
                   ) : null}
+                  <span className="block text-xs text-slate-600">
+                    {formatQuoteDate(q.createdAt)}
+                  </span>
                   <span className="block text-xs text-slate-500">
-                    {new Date(q.createdAt).toLocaleString()}
+                    {formatQuoteTime(q.createdAt)}
                   </span>
                 </span>
-                <span className="text-sm text-slate-700">{q.grandTotal.toFixed(2)}</span>
+                <span className="shrink-0 text-sm font-medium text-slate-700">
+                  {q.grandTotal.toFixed(2)}
+                </span>
               </Link>
             </li>
           ))}

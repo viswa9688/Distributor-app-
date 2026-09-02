@@ -195,10 +195,6 @@ export function SellQuoteBuilder({
           Pick a client, add products, set margin % on each line. Base cost =
           buy + extra charges.
         </p>
-        <div className="flex gap-3 text-xs">
-          <Link href="/clients" className="underline text-slate-600">Clients</Link>
-          <Link href="/quotes" className="underline text-slate-600">All quotes</Link>
-        </div>
       </div>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
