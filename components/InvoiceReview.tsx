@@ -45,19 +45,20 @@ export function InvoiceReview({
 
   async function setProduct(line: Line, productId: string | null) {
     setError(null);
+    setLines((prev) =>
+      prev.map((l) => (l.id === line.id ? { ...l, productId } : l)),
+    );
+
     const res = await fetch(`/api/invoices/${invoiceId}/lines`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lineId: line.id, productId }),
     });
     if (!res.ok) {
+      setLines((prev) => prev.map((l) => (l.id === line.id ? line : l)));
       const payload = (await res.json()) as { error?: string };
       setError(payload.error ?? "Could not update line.");
-      return;
     }
-    setLines((prev) =>
-      prev.map((l) => (l.id === line.id ? { ...l, productId } : l)),
-    );
   }
 
   async function confirm() {

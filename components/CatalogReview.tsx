@@ -53,6 +53,18 @@ export function CatalogReview({
   }, [lines]);
 
   async function setAction(line: Line, action: Line["action"], matchedProductId?: string | null) {
+    setError(null);
+    const nextMatchedProductId =
+      matchedProductId === undefined ? line.matchedProductId : matchedProductId;
+
+    setLines((prev) =>
+      prev.map((l) =>
+        l.id === line.id
+          ? { ...l, action, matchedProductId: nextMatchedProductId }
+          : l,
+      ),
+    );
+
     const res = await fetch(`/api/catalogs/${catalogId}/lines`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -63,22 +75,10 @@ export function CatalogReview({
       }),
     });
     if (!res.ok) {
+      setLines((prev) => prev.map((l) => (l.id === line.id ? line : l)));
       const payload = (await res.json()) as { error?: string };
       setError(payload.error ?? "Could not update row.");
-      return;
     }
-    setLines((prev) =>
-      prev.map((l) =>
-        l.id === line.id
-          ? {
-              ...l,
-              action,
-              matchedProductId:
-                matchedProductId === undefined ? l.matchedProductId : matchedProductId,
-            }
-          : l,
-      ),
-    );
   }
 
   async function apply() {
@@ -254,7 +254,9 @@ function LineGroup({
                   }
                 >
                   <option value="CREATE">New</option>
-                  <option value="UPDATE">Update</option>
+                  <option value="UPDATE" disabled={!line.matchedProductId}>
+                    Update
+                  </option>
                   <option value="SKIP">Skip</option>
                   <option value="UNCERTAIN">Uncertain</option>
                 </select>
