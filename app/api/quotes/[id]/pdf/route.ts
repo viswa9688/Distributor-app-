@@ -33,8 +33,6 @@ export async function GET(
     unit: l.unit,
     quantity: Number(l.quantity),
     baseCost: Number(l.baseCost),
-    marginPercent: Number(l.marginPercent),
-    unitQuotePrice: Number(l.unitQuotePrice),
     lineTotal: Number(l.lineTotal),
   }));
   const grandTotal = sumQuoteLines(lines);
@@ -67,10 +65,8 @@ export async function GET(
   y -= 24;
 
   draw("Product", 50, 9, true);
-  draw("Qty", 280, 9, true);
-  draw("Base", 320, 9, true);
-  draw("Margin", 380, 9, true);
-  draw("Unit", 440, 9, true);
+  draw("Qty", 340, 9, true);
+  draw("Unit cost", 400, 9, true);
   draw("Total", 500, 9, true);
   y -= 14;
 
@@ -83,12 +79,10 @@ export async function GET(
       ? `${line.productName} (${line.sku})`
       : line.productName;
     const short =
-      label.length > 36 ? `${label.slice(0, 35)}…` : label;
+      label.length > 40 ? `${label.slice(0, 39)}…` : label;
     draw(short, 50, 9);
-    draw(String(line.quantity), 280, 9);
-    draw(formatMoney(line.baseCost), 320, 9);
-    draw(`${line.marginPercent}%`, 380, 9);
-    draw(formatMoney(line.unitQuotePrice), 440, 9);
+    draw(String(line.quantity), 340, 9);
+    draw(formatMoney(line.baseCost), 400, 9);
     draw(formatMoney(line.lineTotal), 500, 9);
     y -= 14;
     draw(line.manufacturerName, 50, 8);

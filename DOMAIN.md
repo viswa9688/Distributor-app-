@@ -14,7 +14,7 @@ Four jobs:
 1. **Manufacturer catalogs (PDF)** — long multi-page docs. Somewhere in them is a price list; extra charges can appear anywhere, often on the last page. The app finds those pages, extracts prices, and updates the product database **for that manufacturer**.
 2. **Retailer invoices** — handwritten or printed. Point the phone camera (or pick from gallery). Extract line items and prices; save as a sale.
 3. **Price history** — for each product, a running record of buy prices (from the manufacturer) and sell prices (to the retailer). The UI shows the last 5 of each. The database keeps the full series.
-4. **Sales quotes (Sell)** — browse all products, pick a **client**, set per-line margin % on top of buy cost + extra charges, save quote, export PDF.
+4. **Sales quotes (Sell)** — browse all products, pick a **client**, add quantities; quote shows **total cost** per unit (buy + extra charges) and line total (unit cost × qty).
 
 ## Product source of truth
 
@@ -30,8 +30,7 @@ The catalog pipeline is the primary way `Product` rows are created (plus manual 
 - **Clients** bottom-nav tab (`/clients`) lists all clients; tap one → `/clients/[id]` shows **all quotes for that client** (default filter: all time; optional 7d / 30d / 90d).
 - Distinct from invoice `retailerName` (string on scanned retailer invoices). Linking Client ↔ invoice retailer is future work.
 - Each saved **SalesQuote** stores `createdAt` (UTC in DB). UI and PDF show **date created** and **time created** separately (locale-aware).
-- **Sales quote** cost per unit = `currentBuyPrice` + product extra charges (flat amounts + % of buy price, not compounded).
-- **Margin %** is per line; quote price = base cost × (1 + margin/100).
+- **Sales quote** line = **unit total cost** (buy + extra charges) and **line total** (unit cost × quantity). No margin % in v1 quotes.
 - Quotes are **snapshots** (client name, product fields, costs frozen at save time).
 - PDF export only — quotes do **not** append SELL price history (that still comes from confirmed retailer invoices).
 
@@ -73,7 +72,7 @@ v1 steps 1–6 complete. Post-v1:
 
 ## What is built
 
-- **Sell** tab: product browse, client picker, margins, save quote.
+- **Sell** tab: product browse, client picker, quantity; unit cost + line total + grand total.
 - **Clients** tab: list clients → client detail with **all quotes** for that client; date + time on each row.
 - Quote detail: **Date created** / **Time created**; PDF includes both.
 - `/quotes`: all quotes across clients (optional; also reachable from Clients flow).

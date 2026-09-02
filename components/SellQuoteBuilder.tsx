@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   lineTotal,
-  unitQuotePrice,
 } from "@/lib/quote-cost";
 
 type ClientOption = { id: string; name: string; quoteCount?: number };
@@ -29,7 +28,6 @@ type CartLine = {
   baseCost: number;
   manufacturerName: string;
   quantity: string;
-  marginPercent: string;
 };
 
 export function SellQuoteBuilder({
@@ -86,15 +84,11 @@ export function SellQuoteBuilder({
 
   const cartWithTotals = useMemo(() => {
     return cart.map((line) => {
-      const margin = Number(line.marginPercent);
       const qty = Number(line.quantity);
-      const unit =
-        Number.isFinite(margin) && margin >= 0
-          ? unitQuotePrice(line.baseCost, margin)
-          : 0;
+      const unitCost = line.baseCost;
       const total =
-        Number.isFinite(qty) && qty > 0 && unit > 0 ? lineTotal(unit, qty) : 0;
-      return { ...line, unitQuotePrice: unit, lineTotal: total };
+        Number.isFinite(qty) && qty > 0 ? lineTotal(unitCost, qty) : 0;
+      return { ...line, unitCost, lineTotal: total };
     });
   }, [cart]);
 
@@ -113,7 +107,6 @@ export function SellQuoteBuilder({
         baseCost: product.baseCost,
         manufacturerName: product.manufacturer.name,
         quantity: "1",
-        marginPercent: "10",
       },
     ]);
   }
@@ -171,7 +164,6 @@ export function SellQuoteBuilder({
           lines: cart.map((line) => ({
             productId: line.productId,
             quantity: line.quantity,
-            marginPercent: line.marginPercent,
           })),
         }),
       });
@@ -192,8 +184,8 @@ export function SellQuoteBuilder({
     <div className="flex flex-col gap-6 pb-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate-600">
-          Pick a client, add products, set margin % on each line. Base cost =
-          buy + extra charges.
+          Pick a client, add products, set quantity. Total cost = buy price +
+          extra charges per unit.
         </p>
       </div>
 
@@ -281,7 +273,7 @@ export function SellQuoteBuilder({
                       {p.manufacturer.name}
                       {p.sku ? ` · ${p.sku}` : ""}
                       {p.unit ? ` · ${p.unit}` : ""}
-                      · base {p.baseCost}
+                      · cost {p.baseCost}
                     </p>
                   </div>
                   <button
@@ -309,7 +301,8 @@ export function SellQuoteBuilder({
                   <div>
                     <p className="text-sm font-medium">{line.name}</p>
                     <p className="text-xs text-slate-500">
-                      {line.manufacturerName} · base {line.baseCost.toFixed(2)}
+                      {line.manufacturerName} · unit cost{" "}
+                      {line.unitCost.toFixed(2)}
                     </p>
                   </div>
                   <button
@@ -320,7 +313,7 @@ export function SellQuoteBuilder({
                     Remove
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <label className="text-xs text-slate-500">
                     Qty
                     <input
@@ -340,27 +333,8 @@ export function SellQuoteBuilder({
                       className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1 text-sm"
                     />
                   </label>
-                  <label className="text-xs text-slate-500">
-                    Margin %
-                    <input
-                      value={line.marginPercent}
-                      onChange={(e) =>
-                        setCart((prev) =>
-                          prev.map((c) =>
-                            c.productId === line.productId
-                              ? { ...c, marginPercent: e.target.value }
-                              : c,
-                          ),
-                        )
-                      }
-                      type="number"
-                      min={0}
-                      step="any"
-                      className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                    />
-                  </label>
                   <div className="text-xs text-slate-500">
-                    Line total
+                    Total (all units)
                     <p className="mt-1 text-sm font-medium text-slate-900">
                       {line.lineTotal.toFixed(2)}
                     </p>

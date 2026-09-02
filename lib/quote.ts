@@ -3,9 +3,7 @@ import {
   baseCost,
   extraChargesTotal,
   lineTotal,
-  parseMarginPercent,
   parseQuantity,
-  unitQuotePrice,
 } from "@/lib/quote-cost";
 
 type LineInput = {
@@ -44,10 +42,7 @@ export async function buildQuoteLines(inputs: LineInput[]) {
     }
 
     const quantity = parseQuantity(input.quantity) ?? 1;
-    const marginPercent = parseMarginPercent(input.marginPercent);
-    if (marginPercent === null) {
-      throw new Error(`Valid margin % required for “${product.name}”.`);
-    }
+    const marginPercent = 0;
 
     const buyPrice = Number(product.currentBuyPrice);
     const charges = product.extraCharges.map((c) => ({
@@ -56,8 +51,7 @@ export async function buildQuoteLines(inputs: LineInput[]) {
     }));
     const chargesTotal = extraChargesTotal(buyPrice, charges);
     const cost = baseCost(buyPrice, charges);
-    const unitPrice = unitQuotePrice(cost, marginPercent);
-    const total = lineTotal(unitPrice, quantity);
+    const total = lineTotal(cost, quantity);
 
     lines.push({
       productId: product.id,
@@ -70,7 +64,7 @@ export async function buildQuoteLines(inputs: LineInput[]) {
       extraChargesTotal: chargesTotal,
       baseCost: cost,
       marginPercent,
-      unitQuotePrice: unitPrice,
+      unitQuotePrice: cost,
       lineTotal: total,
     });
   }

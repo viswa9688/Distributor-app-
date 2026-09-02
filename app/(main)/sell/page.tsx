@@ -21,8 +21,8 @@ export default async function SellPage({
       <div>
         <h1 className="text-2xl font-semibold">Sell</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Build a sales quote for a client with margin on top of buy cost +
-          charges.
+          Build a sales quote for a client. Total cost per unit includes buy
+          price and extra charges.
         </p>
       </div>
       <SellQuoteBuilder
