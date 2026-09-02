@@ -7,13 +7,31 @@ import { createClient } from "@/lib/supabase/client";
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
 
-export function InvoiceCapture() {
+export type ManufacturerOption = {
+  id: string;
+  name: string;
+  productCount: number;
+};
+
+export function InvoiceCapture({
+  manufacturers,
+}: {
+  manufacturers: ManufacturerOption[];
+}) {
   const router = useRouter();
+  const [manufacturerId, setManufacturerId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const selected = manufacturers.find((m) => m.id === manufacturerId);
+  const canScan = Boolean(selected && selected.productCount > 0);
+
   async function onFile(file: File | undefined) {
     if (!file) return;
+    if (!canScan || !manufacturerId) {
+      setError("Select a manufacturer with products before scanning.");
+      return;
+    }
     setError(null);
     if (!file.type.startsWith("image/") && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)) {
       setError("Please take or choose a photo.");
@@ -58,7 +76,7 @@ export function InvoiceCapture() {
       const res = await fetch("/api/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filePath }),
+        body: JSON.stringify({ filePath, manufacturerId }),
       });
       const payload = (await res.json()) as { id?: string; error?: string };
       if (!payload.id) {
@@ -75,27 +93,65 @@ export function InvoiceCapture() {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <label className="mb-4 flex flex-col gap-1 text-sm">
+        Manufacturer
+        <select
+          value={manufacturerId}
+          onChange={(e) => {
+            setManufacturerId(e.target.value);
+            setError(null);
+          }}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-slate-900"
+        >
+          <option value="">Select who you are selling from…</option>
+          {manufacturers.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} ({m.productCount} product{m.productCount === 1 ? "" : "s"})
+            </option>
+          ))}
+        </select>
+        {selected && selected.productCount === 0 ? (
+          <span className="text-xs text-amber-800">
+            Scan a catalog PDF for this manufacturer before invoicing their products.
+          </span>
+        ) : null}
+      </label>
+
       <div className="flex flex-col gap-3">
-        <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl bg-slate-900 px-4 py-8 text-center text-white">
+        <label
+          className={`flex flex-col items-center gap-2 rounded-xl px-4 py-8 text-center ${
+            canScan && !pending
+              ? "cursor-pointer bg-slate-900 text-white"
+              : "cursor-not-allowed bg-slate-200 text-slate-500"
+          }`}
+        >
           <span className="text-sm font-medium">
             {pending ? "Reading invoice…" : "Take a photo"}
           </span>
-          <span className="text-xs text-slate-300">
-            Uses the rear camera on a phone. Nothing is saved as a sale until you confirm.
+          <span className="text-xs opacity-80">
+            {canScan
+              ? "Nothing is saved as a sale until you confirm."
+              : "Pick a manufacturer with products first."}
           </span>
           <input
             type="file"
             accept={ACCEPT}
             capture="environment"
             className="hidden"
-            disabled={pending}
+            disabled={pending || !canScan}
             onChange={(e) => {
               onFile(e.target.files?.[0]);
               e.target.value = "";
             }}
           />
         </label>
-        <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center">
+        <label
+          className={`flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-6 text-center ${
+            canScan && !pending
+              ? "cursor-pointer border-slate-300"
+              : "cursor-not-allowed border-slate-200 text-slate-400"
+          }`}
+        >
           <span className="text-sm font-medium">
             {pending ? "Please wait…" : "Choose from gallery"}
           </span>
@@ -103,7 +159,7 @@ export function InvoiceCapture() {
             type="file"
             accept={ACCEPT}
             className="hidden"
-            disabled={pending}
+            disabled={pending || !canScan}
             onChange={(e) => {
               onFile(e.target.files?.[0]);
               e.target.value = "";

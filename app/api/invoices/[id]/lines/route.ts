@@ -42,12 +42,15 @@ export async function PATCH(
   } else if (body.productId === null || body.productId === "") {
     productId = null;
   } else {
-    const product = await prisma.product.findUnique({
-      where: { id: body.productId },
+    const product = await prisma.product.findFirst({
+      where: { id: body.productId, manufacturerId: invoice.manufacturerId },
       select: { id: true },
     });
     if (!product) {
-      return NextResponse.json({ error: "Product not found." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Product not found for this manufacturer." },
+        { status: 400 },
+      );
     }
     productId = product.id;
   }

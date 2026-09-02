@@ -22,12 +22,14 @@ export function InvoiceReview({
   invoiceId,
   initialStatus,
   initialRetailer,
+  manufacturerName,
   initialLines,
   products,
 }: {
   invoiceId: string;
   initialStatus: string;
   initialRetailer: string;
+  manufacturerName: string;
   initialLines: Line[];
   products: ProductOption[];
 }) {
@@ -90,8 +92,7 @@ export function InvoiceReview({
     <div className="flex flex-col gap-6 pb-6">
       {products.length === 0 ? (
         <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          There are no catalog products yet. Lines will stay unmatched text. No
-          sell history is written until a product is chosen.
+          Lines match only {manufacturerName}&apos;s products.
         </p>
       ) : null}
 

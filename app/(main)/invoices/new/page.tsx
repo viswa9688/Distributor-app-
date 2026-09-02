@@ -1,28 +1,43 @@
+import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
 import { InvoiceCapture } from "@/components/InvoiceCapture";
 import { prisma } from "@/lib/prisma";
 
 export default async function NewInvoicePage() {
-  const productCount = await prisma.product.count();
+  const manufacturers = await prisma.manufacturer.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      _count: { select: { products: true } },
+    },
+  });
+
+  const manufacturerOptions = manufacturers.map((m) => ({
+    id: m.id,
+    name: m.name,
+    productCount: m._count.products,
+  }));
 
   return (
     <main className="flex flex-col gap-4 pb-6">
       <div>
         <h1 className="text-2xl font-semibold">Scan invoice</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Camera first, gallery as a fallback. Invoices do not create products.
-          Unmatched lines stay as text.
+          Select which manufacturer you are selling from, then photograph the
+          retailer invoice. Lines match only that supplier&apos;s products.
         </p>
       </div>
-      {productCount === 0 ? (
+      {manufacturers.length === 0 ? (
         <EmptyState
-          title="Catalog first"
-          body="There are no products yet. Upload a manufacturer catalog so invoice lines can match. You can still scan; unmatched lines will not write sell history."
+          title="Add a manufacturer first"
+          body="Create a manufacturer and scan their catalog PDF before you can record sales."
           actionHref="/manufacturers/new"
-          actionLabel="Upload a manufacturer catalog"
+          actionLabel="Add manufacturer"
         />
-      ) : null}
-      <InvoiceCapture />
+      ) : (
+        <InvoiceCapture manufacturers={manufacturerOptions} />
+      )}
     </main>
   );
 }

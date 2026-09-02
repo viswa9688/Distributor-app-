@@ -90,16 +90,19 @@ export default async function HomePage() {
     }),
   ]);
 
-  const catalogFirst = productCount === 0;
+  const noManufacturers = manufacturers.length === 0;
+  const noProducts = productCount === 0;
 
   return (
     <main className="flex flex-col gap-6 pb-6">
       <div>
         <h1 className="text-2xl font-semibold">Home</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {catalogFirst
+          {noManufacturers
             ? "Add a manufacturer, then scan their catalog PDF. Products stay grouped by supplier."
-            : `${productCount} product${productCount === 1 ? "" : "s"} across ${manufacturers.length} manufacturer${manufacturers.length === 1 ? "" : "s"}.`}
+            : noProducts
+              ? `${manufacturers.length} manufacturer${manufacturers.length === 1 ? "" : "s"} — scan a catalog PDF to add products.`
+              : `${productCount} product${productCount === 1 ? "" : "s"} across ${manufacturers.length} manufacturer${manufacturers.length === 1 ? "" : "s"}.`}
         </p>
       </div>
 
@@ -136,7 +139,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      {catalogFirst ? (
+      {noManufacturers ? (
         <Link
           href="/manufacturers/new"
           className="rounded-2xl bg-slate-900 px-4 py-4 text-white"
@@ -144,6 +147,16 @@ export default async function HomePage() {
           <p className="text-base font-semibold">Add manufacturer</p>
           <p className="mt-1 text-sm text-slate-300">
             Then scan their catalog PDF inside their page.
+          </p>
+        </Link>
+      ) : noProducts ? (
+        <Link
+          href="/manufacturers"
+          className="rounded-2xl bg-slate-900 px-4 py-4 text-white"
+        >
+          <p className="text-base font-semibold">Scan a catalog PDF</p>
+          <p className="mt-1 text-sm text-slate-300">
+            Open a manufacturer and upload their price list before scanning invoices.
           </p>
         </Link>
       ) : (
@@ -168,18 +181,6 @@ export default async function HomePage() {
           </Link>
         </div>
       )}
-
-      {catalogFirst ? (
-        <Link
-          href="/invoices/new"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4"
-        >
-          <p className="text-base font-semibold">Scan invoice</p>
-          <p className="mt-1 text-sm text-slate-600">
-            Needs products from a catalog to match against.
-          </p>
-        </Link>
-      ) : null}
 
       {catalogReviews.length > 0 || invoiceReviews.length > 0 ? (
         <section className="flex flex-col gap-2">
@@ -224,8 +225,8 @@ export default async function HomePage() {
           <EmptyState
             title="None yet"
             body="Extra charges come from an applied manufacturer catalog."
-            actionHref={catalogFirst ? "/manufacturers/new" : undefined}
-            actionLabel={catalogFirst ? "Add manufacturer" : undefined}
+            actionHref={noManufacturers ? "/manufacturers/new" : undefined}
+            actionLabel={noManufacturers ? "Add manufacturer" : undefined}
           />
         ) : (
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
@@ -262,12 +263,24 @@ export default async function HomePage() {
           <EmptyState
             title="No sales yet"
             body={
-              catalogFirst
+              noManufacturers || noProducts
                 ? "Add a manufacturer and catalog first. Then scan a retailer invoice."
                 : "Scan a retailer invoice and confirm."
             }
-            actionHref={catalogFirst ? "/manufacturers/new" : "/invoices/new"}
-            actionLabel={catalogFirst ? "Add manufacturer" : "Scan invoice"}
+            actionHref={
+              noManufacturers
+                ? "/manufacturers/new"
+                : noProducts
+                  ? "/manufacturers"
+                  : "/invoices/new"
+            }
+            actionLabel={
+              noManufacturers
+                ? "Add manufacturer"
+                : noProducts
+                  ? "Scan catalog PDF"
+                  : "Scan invoice"
+            }
           />
         ) : (
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">

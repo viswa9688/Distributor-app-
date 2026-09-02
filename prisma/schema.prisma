@@ -51,6 +51,7 @@ model Manufacturer {
   updatedAt DateTime        @updatedAt
   products  Product[]
   catalogs  CatalogImport[]
+  invoices  Invoice[]
 }
 
 model Product {
@@ -89,16 +90,20 @@ model PriceHistory {
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  retailerName  String
-  invoiceNumber String?
-  invoiceDate   DateTime?
-  imagePath     String
-  status        InvoiceStatus @default(REVIEW)
-  createdBy     String
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  lines         InvoiceLine[]
+  id             String        @id @default(cuid())
+  manufacturerId String
+  manufacturer   Manufacturer  @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  retailerName   String
+  invoiceNumber  String?
+  invoiceDate    DateTime?
+  imagePath      String
+  status         InvoiceStatus @default(REVIEW)
+  createdBy      String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  lines          InvoiceLine[]
+
+  @@index([manufacturerId])
 }
 
 model InvoiceLine {

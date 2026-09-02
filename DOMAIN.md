@@ -25,7 +25,7 @@ The catalog pipeline is the **only** way `Product` rows are created.
 - First catalog for a manufacturer: matcher vs empty scoped list → every row `CREATE`.
 - Later catalogs for the same manufacturer: mix of `CREATE` / `UPDATE` / `UNCERTAIN`. Apply **appends** BUY history; never deletes history.
 - No seed script. No “add product” admin form.
-- Invoices do **not** create products. Invoice matching runs against **all** products (all manufacturers). Unmatched lines stay raw text; no `SELL` history until a `productId` is set.
+- Invoices do **not** create products. Invoice scan requires choosing a **manufacturer**; matching uses only that supplier’s products.
 
 ## Locked decisions
 
@@ -42,36 +42,41 @@ The catalog pipeline is the **only** way `Product` rows are created.
 
 Same module. Size mismatch is a hard reject. SKU exact → normalized exact → Dice/containment.
 
-Catalog matcher scope: **current manufacturer’s products only**. Invoice matcher scope: **all products**.
+Catalog matcher scope: **current manufacturer’s products only**. Invoice matcher scope: **selected manufacturer’s products only**.
 
 ## Build sequence (6 steps + post-v1)
 
 v1 steps 1–6 are complete. Post-v1:
 
 7. **Manufacturers** — table + UI; scoped catalog PDF; Home breakdown by manufacturer.
+8. **Manufacturer-first sales** — wipe legacy data; invoice scan requires manufacturer; matching scoped to that manufacturer’s products only.
 
 ## Current phase
 
-**Manufacturers (post-v1)** is implemented. Waiting for user confirmation.
+**Manufacturer-first flow** is implemented. Waiting for user confirmation.
 
 ## What is built
 
 v1 plus:
 
-- `Manufacturer` model; `Product.manufacturerId` and `CatalogImport.manufacturerId` required.
+- `Manufacturer` model; `Product.manufacturerId`, `CatalogImport.manufacturerId`, and `Invoice.manufacturerId` required.
 - **Makers** tab: list, add by name, or add from catalog PDF (Gemini suggests name, user confirms).
 - Manufacturer detail: product list, **Scan catalog PDF**, extra charges from applied catalogs.
 - Home: manufacturer summary with product counts; extra charges show manufacturer name.
-- Products list: manufacturer column; invoice scan still matches globally.
-- Legacy `/catalogs/new` redirects to `/manufacturers`. Existing data backfilled to manufacturer `Imported catalog` if migration ran.
+- Products list: manufacturer column.
+- **Invoice scan**: must pick a manufacturer; camera/gallery disabled until that manufacturer has at least one product; lines match only that manufacturer’s catalog.
+- Legacy `/catalogs/new` redirects to `/manufacturers`.
+- One-off wipe script: `scripts/wipe-business-data.ts` (invoices → catalogs → products → manufacturers).
 
 ## How to confirm this phase
 
-1. Run `npx prisma migrate deploy` (or `npm run db:migrate`) if the DB does not have `Manufacturer` yet.
-2. Add manufacturer “ABC” → empty product list for ABC only.
-3. Scan PDF inside ABC → Apply → products only under ABC.
-4. Add “XYZ”, scan another PDF → separate rows even if names match ABC.
-5. Home shows both with counts; Products list shows manufacturer column.
-6. Invoice scan still matches products from any manufacturer.
+1. DB should have migrations through `20260902143000_invoice_manufacturer`. Run `npx prisma migrate deploy` on any environment that does not yet.
+2. **Makers** → Add manufacturer “ABC” → empty product list.
+3. Scan catalog PDF under ABC → Apply → products appear only under ABC.
+4. **Scan** tab: without a manufacturer with products, capture is blocked.
+5. Select ABC → scan retailer invoice → lines match ABC products only; invoice detail shows manufacturer link.
+6. Add “XYZ” + catalog → separate product rows; invoice for XYZ does not match ABC SKUs.
+
+If prod uses a **separate** Supabase project, run `npx tsx scripts/wipe-business-data.ts` and `npx prisma migrate deploy` there too (with prod env vars), then redeploy Vercel.
 
 If that looks right, say so. Next work is outside this sequence unless you request it.

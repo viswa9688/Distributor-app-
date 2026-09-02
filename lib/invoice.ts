@@ -23,8 +23,17 @@ function mimeFromPath(filePath: string, header: string | undefined): string {
 
 export async function createInvoiceFromUpload(
   filePath: string,
+  manufacturerId: string,
   createdBy: string,
 ) {
+  const manufacturer = await prisma.manufacturer.findUnique({
+    where: { id: manufacturerId },
+    select: { id: true, name: true },
+  });
+  if (!manufacturer) {
+    throw new Error("Manufacturer not found.");
+  }
+
   const supabase = await createClient();
   const { data: file, error } = await supabase.storage
     .from("invoices")
@@ -45,6 +54,7 @@ export async function createInvoiceFromUpload(
   }
 
   const products = await prisma.product.findMany({
+    where: { manufacturerId },
     select: {
       id: true,
       name: true,
@@ -54,6 +64,12 @@ export async function createInvoiceFromUpload(
       sizeUnit: true,
     },
   });
+  if (products.length === 0) {
+    throw new Error(
+      `No products for ${manufacturer.name} yet. Scan their catalog PDF first.`,
+    );
+  }
+
   const candidates: ProductCandidate[] = products.map((p) => ({
     id: p.id,
     name: p.name,
@@ -67,6 +83,7 @@ export async function createInvoiceFromUpload(
     async (tx) => {
       const created = await tx.invoice.create({
         data: {
+          manufacturerId,
           retailerName:
             extracted.retailerName.length > 0
               ? extracted.retailerName
