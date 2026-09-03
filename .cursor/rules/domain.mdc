@@ -1,5 +1,5 @@
 ---
-description: Read DOMAIN.md first every session/phase. Update it only at phase close.
+description: Domain knowledge and phase ritual for the distributor app
 alwaysApply: true
 ---
 
@@ -12,13 +12,14 @@ That file is the source of truth for the business, locked v1 decisions, and whic
 ## Phase ritual
 
 1. Start of a session or phase: read `DOMAIN.md` first.
-2. Do one step. Stop and ask the user to confirm the app behaves as intended.
-3. Phase close: explicitly update `DOMAIN.md` with what this step built, how to confirm it, and which step is next. Then wait.
+2. Do one step.
+3. When that step is **done**, immediately update `DOMAIN.md` with what this step built, how to confirm it, and which step is next. Do **not** wait for the user to confirm before updating.
 
 ## Do not
 
-- Start the next build step until the user confirms the current one.
-- Update `DOMAIN.md` as a silent side effect of a commit, refactor, or unrelated edit.
+- Start the next build step until the user asks for it or confirms direction.
+- Skip updating `DOMAIN.md` after finishing a feature.
+- Update `DOMAIN.md` as a silent side effect of an unrelated commit, refactor, or drive-by edit.
 - Create products from invoices, seed products, or add an “add product” form.
 - Delete price-history rows on write. Last-5 is a read `LIMIT`.
 - Treat catalog OCR retry as a job queue.

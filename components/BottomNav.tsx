@@ -8,6 +8,7 @@ const tabs = [
     match: (p: string) => p.startsWith("/manufacturers"),
   },
   { href: "/sell", label: "Sell", match: (p: string) => p.startsWith("/sell") },
+  { href: "/rate", label: "Rate", match: (p: string) => p.startsWith("/rate") },
   {
     href: "/clients",
     label: "Clients",
@@ -28,14 +29,14 @@ const tabs = [
 export function BottomNav({ pathname }: { pathname: string }) {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <ul className="mx-auto grid max-w-lg grid-cols-6">
+      <ul className="mx-auto grid max-w-lg grid-cols-7">
         {tabs.map((tab) => {
           const active = tab.match(pathname);
           return (
             <li key={tab.href}>
               <Link
                 href={tab.href}
-                className={`flex h-14 items-center justify-center text-[11px] font-medium leading-tight ${
+                className={`flex h-14 items-center justify-center text-[10px] font-medium leading-tight ${
                   active ? "text-slate-900" : "text-slate-500"
                 }`}
               >

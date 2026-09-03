@@ -12,6 +12,7 @@ export async function lastFivePrices(productId: string, kind: PriceKind) {
       price: true,
       recordedAt: true,
       sourceType: true,
+      sourceId: true,
     },
   });
 }
